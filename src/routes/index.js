@@ -6,12 +6,14 @@ const pessoaRoutes = require('./pessoaRoutes');
 const alunoRoutes = require('./alunoRoutes');
 const userRoutes = require('./userRoutes');
 const localRoutes = require('./localRoutes');
+const planoRoutes = require('./planoRoutes');
 
 // Registrar rotas
 router.use('/pessoas', pessoaRoutes);
 router.use('/alunos', alunoRoutes);
 router.use('/users', userRoutes);
 router.use('/locais', localRoutes);
+router.use('/planos', planoRoutes);
 
 // Rota de health check
 router.get('/health', (req, res) => {
@@ -24,7 +26,8 @@ router.get('/health', (req, res) => {
       pessoas: '/api/pessoas',
       alunos: '/api/alunos',
       users: '/api/users',
-      locais: '/api/locais'
+      locais: '/api/locais',
+      planos: '/api/planos'
     }
   });
 });
@@ -39,7 +42,8 @@ router.get('/', (req, res) => {
       { path: '/api/pessoas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/alunos', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/users', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/locais', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      { path: '/api/locais', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/planos', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
     ]
   });
 });

@@ -67,31 +67,28 @@ type ControleAcesso {
 
 // ========== MODELS ==========
 model Pessoa {
-  id       String     @id @default(auto()) @map("_id") @db.ObjectId
-  codigo   String?    @unique
-  tipo     TipoPessoa
-  situacao Situacao   @default(ATIVO)
-
-  // Campos comuns
-  nome1    String
-  nome2 String?
-
-  // Campos Pessoa Física
-  dtNsc DateTime? @db.Date
-  doc1            String?   @unique
-  doc2             String?
-
-  // Listas
-  enderecos Endereco[]
-  contatos  Contato[]
-
-  // Relacionamentos
-  alunos Aluno[]
-
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  codigo    String   @unique
+  tipo      String   // FISICA ou JURIDICA
+  nome1     String
+  nome2     String?
+  doc1      String   @unique  // CPF ou CNPJ
+  doc2      String?
+  dtNsc     DateTime?
+  situacao  String   @default("ATIVO")
+  
+  // ✅ Campos JSON (não são modelos relacionados)
+  enderecos Json[]   @default([])
+  contatos  Json[]   @default([])
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([situacao])
+  // Relações
+  alunos       Aluno[]
+  funcionarios Funcionario[]
+
+  @@map("pessoas")
 }
 
 model User {
@@ -170,5 +167,63 @@ model Plano {
   updatedAt         DateTime       @updatedAt
 
   @@map("planos")
+}
+
+model Funcao {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  funcao    String   @unique
+  status    String   @default("ATIVO")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("funcoes")
+}
+
+model Desconto {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  descricao String
+  tipo      String   // PERCENTUAL ou MONETARIO
+  valor     Float
+  status    String   @default("ATIVO")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("descontos")
+}
+
+model Funcionario {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  pessoaId  String   @unique @db.ObjectId
+  pessoa    Pessoa   @relation(fields: [pessoaId], references: [id])
+  
+  matricula String   @unique
+  funcao    String
+  dataAdmissao DateTime
+  dataDemissao DateTime?
+  salario   Float?
+  situacao  String   @default("ATIVO")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("funcionarios")
+}
+model Turma {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  nome         String   @unique
+  sexo         String   // MASCULINO, FEMININO, AMBOS
+  observacoes  String?
+  
+  // Lista de horários com local
+  horarios     Json[]   // Array de { localId, local, diasSemana, horaEntrada, horaSaida }
+  
+  // Lista de instrutores
+  instrutores  Json[]   // Array de { funcionarioId, nome }
+  
+  status       String   @default("ATIVO")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("turmas")
 }
 

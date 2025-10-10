@@ -135,3 +135,13 @@ model Aluno {
 
   @@index([pessoaId])
 }
+
+model Local {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  nome      String
+  status    String   @default("ATIVO") // ATIVO, INATIVO
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("locais")
+}

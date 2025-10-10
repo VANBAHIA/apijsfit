@@ -113,21 +113,25 @@ class AlunoService {
                 }
             };
 
-const alunoCriado = await prisma.aluno.create({
-  data: dadosAluno,
-  include: {
-    pessoa: {
-      select: {
-        id: true,
-        codigo: true,
-        matricula: true,  // ← ADICIONAR
-        nome1: true,
-        nome2: true,
-        // ... demais campos
-      }
-    }
-  }
-});
+            const alunoCriado = await prisma.aluno.create({
+                data: dadosAluno,
+                include: {
+                    pessoa: {
+                        select: {
+                            id: true,
+                            codigo: true,
+                            nome1: true,
+                            nome2: true,
+                            doc1: true,
+                            doc2: true,
+                            dtNsc: true,
+                            situacao: true,
+                            enderecos: true,
+                            contatos: true
+                        }
+                    }
+                }
+            });
 
             return alunoCriado;
 
@@ -214,7 +218,6 @@ const alunoCriado = await prisma.aluno.create({
                     pessoa: {
                         select: {
                             id: true,
-                            matricula: true,
                             codigo: true,
                             nome1: true,
                             nome2: true,

@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ========== ENUMS ==========
+enum TipoPessoa {
+  FISICA
+  JURIDICA
+}
+
+enum TipoContato {
+  EMAIL
+  TELEFONE_FIXO
+  CELULAR
+}
+
+enum Situacao {
+  ATIVO
+  INATIVO
+}
+
+enum DiaSemana {
+  DOMINGO
+  SEGUNDA
+  TERCA
+  QUARTA
+  QUINTA
+  SEXTA
+  SABADO
+}
+
+// ========== TYPES ==========
+type Endereco {
+  logradouro String
+  cep        String
+  cidade     String
+  uf         String
+}
+
+type Contato {
+  tipo  TipoContato
+  valor String
+}
+
+type Responsavel {
+  nome     String
+  contatos Contato[]
+}
+
+type Horario {
+  local          String
+  diasSemana     DiaSemana[]
+  horarioEntrada String
+  horarioSaida   String
+}
+
+type ControleAcesso {
+  senha             String
+  impressaoDigital1 String? // Armazenada como hash/base64
+  impressaoDigital2 String? // Armazenada como hash/base64
+}
+
+// ========== MODELS ==========
+model Pessoa {
+  id       String     @id @default(auto()) @map("_id") @db.ObjectId
+  codigo   String?    @unique
+  tipo     TipoPessoa
+  situacao Situacao   @default(ATIVO)
+
+  // Campos comuns
+  nome1    String
+  nome2 String?
+
+  // Campos Pessoa Física
+  dtNsc DateTime? @db.Date
+  doc1            String?   @unique
+  doc2             String?
+
+  // Listas
+  enderecos Endereco[]
+  contatos  Contato[]
+
+  // Relacionamentos
+  alunos Aluno[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([situacao])
+}
+
+model User {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  nome      String
+  email     String    @unique
+  dtNasc    DateTime?
+  password  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Aluno {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Referência à Pessoa (relacionamento)
+  pessoaId String @db.ObjectId
+  pessoa   Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+
+  // Dados específicos do Aluno
+  vldExameMedico DateTime? @db.Date
+  vldAvaliacao   DateTime? @db.Date
+  objetivo       String?
+  profissao      String?
+  empresa        String?
+
+  // Responsável
+  responsavel Responsavel?
+
+  // Lista de Horários
+  horarios Horario[]
+
+  // Controle de Acesso
+  controleAcesso ControleAcesso
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pessoaId])
+}

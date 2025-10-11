@@ -5,7 +5,8 @@ class FuncionarioRepository {
     return await prisma.funcionario.create({
       data,
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true
       }
     });
   }
@@ -14,37 +15,59 @@ class FuncionarioRepository {
     const { situacao, funcao, skip = 0, take = 10 } = filtros;
 
     const where = {};
-    if (situacao) where.situacao = situacao;
-    if (funcao) where.funcao = { funcao: { contains: funcao, mode: 'insensitive' } };
-
-    const [total, funcionarios] = await Promise.all([
-      prisma.funcionario.count({ where }),
-      prisma.funcionario.findMany({
-        where,
-        include: {
-          pessoa: {
-            select: {
-              id: true,
-              codigo: true,
-              nome1: true,
-              nome2: true,
-              doc1: true,
-              doc2: true,
-              dtNsc: true,
-              situacao: true,
-              contatos: true,
-              enderecos: true
-            }
+    
+    // Filtro por situação
+    if (situacao) {
+      where.situacao = situacao;
+    }
+    
+    // ✅ SOLUÇÃO: Remover filtro de função temporariamente para diagnosticar
+    // Se funcao for necessário, aplicar filtro após buscar os dados
+    
+    try {
+      const [total, funcionarios] = await Promise.all([
+        prisma.funcionario.count({ where }),
+        prisma.funcionario.findMany({
+          where,
+          include: {
+            pessoa: {
+              select: {
+                id: true,
+                codigo: true,
+                nome1: true,
+                nome2: true,
+                doc1: true,
+                doc2: true,
+                dtNsc: true,
+                situacao: true,
+                contatos: true,
+                enderecos: true
+              }
+            },
+            funcao: true
           },
-          funcao: true  // ✅ ADICIONAR esta linha
-        },
-        skip: Number(skip),
-        take: Number(take),
-        orderBy: { createdAt: 'desc' }
-      })
-    ]);
+          skip: Number(skip),
+          take: Number(take),
+          orderBy: { createdAt: 'desc' }
+        })
+      ]);
 
-    return { total, funcionarios };
+      // Filtrar por função após buscar (se necessário)
+      let funcionariosFiltrados = funcionarios;
+      if (funcao) {
+        funcionariosFiltrados = funcionarios.filter(f => 
+          f.funcao?.funcao?.toLowerCase().includes(funcao.toLowerCase())
+        );
+      }
+
+      return { 
+        total: funcao ? funcionariosFiltrados.length : total, 
+        funcionarios: funcionariosFiltrados 
+      };
+    } catch (error) {
+      console.error('❌ Erro ao buscar funcionários:', error);
+      throw error;
+    }
   }
 
   async buscarPorId(id) {
@@ -52,7 +75,7 @@ class FuncionarioRepository {
       where: { id },
       include: {
         pessoa: true,
-        funcao: true  // ✅ ADICIONAR esta linha
+        funcao: true
       }
     });
   }
@@ -62,7 +85,7 @@ class FuncionarioRepository {
       where: { matricula },
       include: {
         pessoa: true,
-        funcao: true  // ✅ ADICIONAR esta linha
+        funcao: true
       }
     });
   }
@@ -72,7 +95,7 @@ class FuncionarioRepository {
       where: { pessoaId },
       include: {
         pessoa: true,
-        funcao: true  // ✅ ADICIONAR esta linha
+        funcao: true
       }
     });
   }
@@ -82,7 +105,8 @@ class FuncionarioRepository {
       where: { id },
       data,
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true
       }
     });
   }
@@ -97,12 +121,15 @@ class FuncionarioRepository {
     const { skip = 0, take = 100 } = filtros;
 
     return await prisma.funcionario.findMany({
-where: {
-  situacao: 'ATIVO',
-  funcao: { 
-    funcao: { contains: 'instrutor', mode: 'insensitive' }
-  }
-},
+      where: {
+        situacao: 'ATIVO',
+        funcao: { 
+          funcao: { 
+            contains: 'instrutor', 
+            mode: 'insensitive' 
+          }
+        }
+      },
       include: {
         pessoa: {
           select: {
@@ -111,7 +138,7 @@ where: {
             doc1: true
           }
         },
-        funcao: true  // ✅ ADICIONAR esta linha
+        funcao: true
       },
       skip: Number(skip),
       take: Number(take),

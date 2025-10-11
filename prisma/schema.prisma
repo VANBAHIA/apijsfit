@@ -176,7 +176,7 @@ model Funcao {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-    funcionarios Funcionario[]
+  funcionarios Funcionario[]
 
   @@map("funcoes")
 }

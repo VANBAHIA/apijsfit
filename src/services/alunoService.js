@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const ApiError = require('../utils/apiError');
 const pessoaService = require('./pessoaService');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/database');
 
 class AlunoService {
     /**
@@ -255,12 +255,7 @@ class AlunoService {
         const aluno = await prisma.aluno.findUnique({
             where: { id },
             include: {
-                pessoa: {
-                    include: {
-                        enderecos: true,
-                        contatos: true
-                    }
-                }
+                pessoa: true  // ← Apenas isso, sem includes aninhados
             }
         });
 
@@ -315,6 +310,9 @@ class AlunoService {
                     await tx.pessoa.update({
                         where: { id: alunoExistente.pessoaId },
                         data: dadosPessoa
+                    }, {
+                        isolationLevel: 'ReadCommitted',
+                        timeout: 10000
                     });
                 }
 
@@ -346,15 +344,11 @@ class AlunoService {
                 }
 
                 // 3️⃣ Buscar aluno atualizado
+                // 3️⃣ Buscar aluno atualizado
                 return await tx.aluno.findUnique({
                     where: { id },
                     include: {
-                        pessoa: {
-                            include: {
-                                enderecos: true,
-                                contatos: true
-                            }
-                        }
+                        pessoa: true  // ✅ Apenas isso
                     }
                 });
             });

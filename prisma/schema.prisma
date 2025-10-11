@@ -176,6 +176,8 @@ model Funcao {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+    funcionarios Funcionario[]
+
   @@map("funcoes")
 }
 
@@ -197,7 +199,8 @@ model Funcionario {
   pessoa    Pessoa   @relation(fields: [pessoaId], references: [id])
   
   matricula String   @unique
-  funcao    String
+  funcaoId  String   @db.ObjectId  // ✅ NOVO: ID da função
+  funcao    Funcao   @relation(fields: [funcaoId], references: [id])  // ✅ NOVO: Relacionamento
   dataAdmissao DateTime
   dataDemissao DateTime?
   salario   Float?
@@ -206,8 +209,10 @@ model Funcionario {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([funcaoId])  // ✅ NOVO: Índice para performance
   @@map("funcionarios")
 }
+
 model Turma {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   nome         String   @unique

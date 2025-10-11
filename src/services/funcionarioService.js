@@ -119,12 +119,13 @@ class FuncionarioService {
       const dadosFuncionario = {
         matricula,
         pessoaId,
-        funcao: funcionario.funcao,
+        funcaoId: funcionario.funcaoId,
         dataAdmissao: new Date(funcionario.dataAdmissao),
         dataDemissao: funcionario.dataDemissao ? new Date(funcionario.dataDemissao) : null,
         salario: funcionario.salario ? Number(funcionario.salario) : null,
         situacao: funcionario.situacao || 'ATIVO'
       };
+
 
       const funcionarioCriado = await prisma.funcionario.create({
         data: dadosFuncionario,
@@ -175,7 +176,9 @@ class FuncionarioService {
 
     // Filtro por função
     if (funcao) {
-      where.funcao = { contains: funcao, mode: 'insensitive' };
+      where.funcao = {
+        funcao: { contains: funcao, mode: 'insensitive' }
+      };
     }
 
     // Busca por nome ou CPF
@@ -294,10 +297,11 @@ class FuncionarioService {
         // 2️⃣ Atualizar Funcionário
         if (funcionario) {
           const dadosFuncionario = {
-            funcao: funcionario.funcao,
+            funcaoId: funcionario.funcaoId,  // ✅ TROCAR de funcao para funcaoId
             situacao: funcionario.situacao,
             salario: funcionario.salario ? Number(funcionario.salario) : undefined
           };
+
 
           if (funcionario.dataAdmissao) {
             dadosFuncionario.dataAdmissao = new Date(funcionario.dataAdmissao);
@@ -362,7 +366,9 @@ class FuncionarioService {
     const instrutores = await prisma.funcionario.findMany({
       where: {
         situacao: 'ATIVO',
-        funcao: { contains: 'instrutor', mode: 'insensitive' }
+        funcao: {
+          funcao: { contains: 'instrutor', mode: 'insensitive' }
+        }
       },
       include: {
         pessoa: {

@@ -12,10 +12,10 @@ class FuncionarioRepository {
 
   async buscarTodos(filtros = {}) {
     const { situacao, funcao, skip = 0, take = 10 } = filtros;
-    
+
     const where = {};
     if (situacao) where.situacao = situacao;
-    if (funcao) where.funcao = { contains: funcao, mode: 'insensitive' };
+    if (funcao) where.funcao = { funcao: { contains: funcao, mode: 'insensitive' } };
 
     const [total, funcionarios] = await Promise.all([
       prisma.funcionario.count({ where }),
@@ -35,7 +35,8 @@ class FuncionarioRepository {
               contatos: true,
               enderecos: true
             }
-          }
+          },
+          funcao: true  // ✅ ADICIONAR esta linha
         },
         skip: Number(skip),
         take: Number(take),
@@ -50,7 +51,8 @@ class FuncionarioRepository {
     return await prisma.funcionario.findUnique({
       where: { id },
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true  // ✅ ADICIONAR esta linha
       }
     });
   }
@@ -59,7 +61,8 @@ class FuncionarioRepository {
     return await prisma.funcionario.findUnique({
       where: { matricula },
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true  // ✅ ADICIONAR esta linha
       }
     });
   }
@@ -68,7 +71,8 @@ class FuncionarioRepository {
     return await prisma.funcionario.findFirst({
       where: { pessoaId },
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true  // ✅ ADICIONAR esta linha
       }
     });
   }
@@ -93,10 +97,12 @@ class FuncionarioRepository {
     const { skip = 0, take = 100 } = filtros;
 
     return await prisma.funcionario.findMany({
-      where: {
-        situacao: 'ATIVO',
-        funcao: { contains: 'instrutor', mode: 'insensitive' }
-      },
+where: {
+  situacao: 'ATIVO',
+  funcao: { 
+    funcao: { contains: 'instrutor', mode: 'insensitive' }
+  }
+},
       include: {
         pessoa: {
           select: {
@@ -104,7 +110,8 @@ class FuncionarioRepository {
             nome2: true,
             doc1: true
           }
-        }
+        },
+        funcao: true  // ✅ ADICIONAR esta linha
       },
       skip: Number(skip),
       take: Number(take),

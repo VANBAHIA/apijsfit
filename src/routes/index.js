@@ -11,6 +11,12 @@ const funcaoRoutes = require('./funcaoRoutes');
 const descontoRoutes = require('./descontoRoutes');
 const turmaRoutes = require('./turmaRoutes');
 const funcionarioRoutes = require('./funcionarioRoutes');
+const matriculaRoutes = require('./matriculaRoutes');
+const contaReceberRoutes = require('./contaReceberRoutes');
+const caixaRoutes = require('./caixaRoutes');
+const contaPagarRoutes = require('./contaPagarRoutes');
+router.use('/contas-pagar', contaPagarRoutes);
+
 
 
 
@@ -25,6 +31,11 @@ router.use('/funcoes', funcaoRoutes)
 router.use('/descontos', descontoRoutes);
 router.use('/turmas', turmaRoutes);
 router.use('/funcionarios', funcionarioRoutes);
+router.use('/matriculas', matriculaRoutes);
+router.use('/contas-receber', contaReceberRoutes);
+router.use('/contas-pagar', contaPagarRoutes);
+router.use('/caixas', caixaRoutes);
+
 
 
 // Rota de health check
@@ -43,7 +54,11 @@ router.get('/health', (req, res) => {
       funcoes: '/api/funcoes',
       descontos: '/api/descontos',
       turmas: '/api/turmas',
-      funcionarios: '/api/funcionarios'
+      funcionarios: '/api/funcionarios',
+      matriculas:'/api/matriculas',
+      contaReceber: '/api/contas-receber',
+      contaPagar: '/api/contas-pagar',
+      caixas: '/api/caixas' 
     }
   });
 });
@@ -63,7 +78,12 @@ router.get('/', (req, res) => {
       { path: '/api/descontos', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/funcoes', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/turmas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/funcionarios', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      { path: '/api/funcionarios', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/matriculas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/contas-receber', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/contas-pagar', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/caixas', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      
     ]
   });
 });

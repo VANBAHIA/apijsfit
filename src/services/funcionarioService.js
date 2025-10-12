@@ -25,17 +25,147 @@ class FuncionarioService {
   }
 
   /**
+   * Gera o próximo código sequencial para pessoa (dentro da transação)
+   */
+  async _gerarProximoCodigoPessoa(prismaClient) {
+    const ultimaPessoa = await prismaClient.pessoa.findFirst({
+      orderBy: { codigo: 'desc' },
+      select: { codigo: true }
+    });
+
+    if (!ultimaPessoa || !ultimaPessoa.codigo) {
+      return '0001';
+    }
+
+    const ultimoNumero = parseInt(ultimaPessoa.codigo);
+    const proximoNumero = ultimoNumero + 1;
+
+    return proximoNumero.toString().padStart(4, '0');
+  }
+
+  /**
+   * 🆕 NOVA FUNÇÃO: Busca ou cria pessoa
+   * Verifica se pessoa existe por CPF/CNPJ e retorna o ID
+   */
+  async _buscarOuCriarPessoa(dadosPessoa, prismaClient) {
+    // PASSO 1: Validar dados mínimos obrigatórios
+    if (!dadosPessoa.doc1) {
+      throw new ApiError(400, 'CPF/CNPJ (doc1) é obrigatório');
+    }
+
+    if (!dadosPessoa.nome1) {
+      throw new ApiError(400, 'Nome (nome1) é obrigatório');
+    }
+
+    // PASSO 2: Verificar se pessoa já existe pelo CPF/CNPJ
+    let pessoaExistente = await prismaClient.pessoa.findFirst({
+      where: { doc1: dadosPessoa.doc1 }
+    });
+
+    // PASSO 3: Se pessoa existe, retornar o ID dela
+    if (pessoaExistente) {
+      console.log(`✅ Pessoa encontrada: ${pessoaExistente.nome1} (ID: ${pessoaExistente.id})`);
+      
+      // OPCIONAL: Atualizar dados da pessoa existente se necessário
+      const dadosAtualizacao = {
+        nome1: dadosPessoa.nome1,
+        nome2: dadosPessoa.nome2 || null,
+        doc2: dadosPessoa.doc2 || null,
+        situacao: dadosPessoa.situacao || pessoaExistente.situacao
+      };
+
+      if (dadosPessoa.dtNsc) {
+        dadosAtualizacao.dtNsc = new Date(dadosPessoa.dtNsc);
+      }
+
+      if (dadosPessoa.enderecos && Array.isArray(dadosPessoa.enderecos)) {
+        dadosAtualizacao.enderecos = dadosPessoa.enderecos;
+      }
+
+      if (dadosPessoa.contatos && Array.isArray(dadosPessoa.contatos)) {
+        dadosAtualizacao.contatos = dadosPessoa.contatos;
+      }
+
+      pessoaExistente = await prismaClient.pessoa.update({
+        where: { id: pessoaExistente.id },
+        data: dadosAtualizacao
+      });
+
+      return pessoaExistente.id;
+    }
+
+    // PASSO 4: Se pessoa NÃO existe, criar uma nova
+    console.log(`📝 Criando nova pessoa: ${dadosPessoa.nome1}`);
+    
+    const codigo = await this._gerarProximoCodigoPessoa(prismaClient);
+
+    const novaPessoa = await prismaClient.pessoa.create({
+      data: {
+        codigo,
+        tipo: dadosPessoa.tipo || 'FISICA',
+        nome1: dadosPessoa.nome1,
+        nome2: dadosPessoa.nome2 || null,
+        doc1: dadosPessoa.doc1,
+        doc2: dadosPessoa.doc2 || null,
+        dtNsc: dadosPessoa.dtNsc ? new Date(dadosPessoa.dtNsc) : null,
+        situacao: dadosPessoa.situacao || 'ATIVO',
+        enderecos: dadosPessoa.enderecos || [],
+        contatos: dadosPessoa.contatos || []
+      }
+    });
+
+    console.log(`✅ Pessoa criada com sucesso (ID: ${novaPessoa.id})`);
+    return novaPessoa.id;
+  }
+
+  /**
    * Cria um novo funcionário COM sua pessoa em transação atômica
+   * 🆕 AGORA SUPORTA pessoaId OU dados completos da pessoa
    */
   async criarComPessoa(dadosCompletos) {
     const { pessoa, funcionario } = dadosCompletos;
 
-    // Validações básicas
-    if (!pessoa || !pessoa.nome1 || !pessoa.doc1) {
-      throw new ApiError(400, 'Dados da pessoa são obrigatórios (nome1 e doc1)');
+    // 🆕 PASSO 1: Verificar se pessoaId foi fornecido
+    let pessoaId = funcionario?.pessoaId;
+
+    // 🆕 PASSO 2: Se pessoaId está vazio/nulo, verificar se há dados da pessoa
+    if (!pessoaId || pessoaId === '') {
+      console.log('⚠️ pessoaId não fornecido, verificando dados de pessoa...');
+
+      if (!pessoa || !pessoa.doc1) {
+        throw new ApiError(
+          400, 
+          'É necessário fornecer pessoaId OU os dados completos da pessoa com CPF/CNPJ'
+        );
+      }
+
+      // 🆕 PASSO 3: Buscar pessoa por CPF/CNPJ ou criar se não existir
+      pessoaId = await this._buscarOuCriarPessoa(pessoa, prisma);
     }
 
-    if (!funcionario || !funcionario.funcao) {
+    // PASSO 4: Validar se a pessoa existe (caso tenha vindo pessoaId)
+    const pessoaValidada = await prisma.pessoa.findUnique({
+      where: { id: pessoaId }
+    });
+
+    if (!pessoaValidada) {
+      throw new ApiError(404, `Pessoa com ID ${pessoaId} não encontrada`);
+    }
+
+    // PASSO 5: Verificar se já existe funcionário para essa pessoa
+    const funcionarioExistente = await prisma.funcionario.findFirst({
+      where: { pessoaId }
+    });
+
+    if (funcionarioExistente) {
+      throw new ApiError(
+        400, 
+        `Já existe um funcionário cadastrado para ${pessoaValidada.nome1} (CPF: ${pessoaValidada.doc1})`
+      );
+    }
+
+    // PASSO 6: Validar dados do funcionário
+    if (!funcionario || !funcionario.funcaoId) {
       throw new ApiError(400, 'Função do funcionário é obrigatória');
     }
 
@@ -43,77 +173,8 @@ class FuncionarioService {
       throw new ApiError(400, 'Data de admissão é obrigatória');
     }
 
+    // PASSO 7: Criar o funcionário
     try {
-      // ✅ PASSO 1: Verificar se pessoa com esse CPF já existe
-      let pessoaExistente = await prisma.pessoa.findFirst({
-        where: { doc1: pessoa.doc1 }
-      });
-
-      let pessoaId;
-
-      // ✅ PASSO 2: Se pessoa existe, verificar se já é funcionário
-      if (pessoaExistente) {
-        const funcionarioExistente = await prisma.funcionario.findFirst({
-          where: { pessoaId: pessoaExistente.id }
-        });
-
-        if (funcionarioExistente) {
-          throw new ApiError(400, 'Já existe um funcionário cadastrado com este CPF');
-        }
-
-        // ✅ Pessoa existe mas não é funcionário → Atualizar dados da pessoa
-        const dadosPessoaAtualizados = {
-          nome1: pessoa.nome1,
-          nome2: pessoa.nome2 || null,
-          doc2: pessoa.doc2 || null,
-          situacao: pessoa.situacao || pessoaExistente.situacao
-        };
-
-        if (pessoa.dtNsc) {
-          dadosPessoaAtualizados.dtNsc = new Date(pessoa.dtNsc);
-        }
-
-        // ✅ IMPORTANTE: enderecos e contatos devem ser arrays JSON
-        if (pessoa.enderecos && Array.isArray(pessoa.enderecos)) {
-          dadosPessoaAtualizados.enderecos = pessoa.enderecos;
-        }
-
-        if (pessoa.contatos && Array.isArray(pessoa.contatos)) {
-          dadosPessoaAtualizados.contatos = pessoa.contatos;
-        }
-
-        pessoaExistente = await prisma.pessoa.update({
-          where: { id: pessoaExistente.id },
-          data: dadosPessoaAtualizados
-        });
-
-        pessoaId = pessoaExistente.id;
-      } else {
-        // ✅ PASSO 3: Pessoa não existe → Criar nova pessoa
-        const codigo = await pessoaService.gerarProximoCodigo();
-
-        const dadosPessoa = {
-          codigo,
-          tipo: pessoa.tipo || 'FISICA',
-          nome1: pessoa.nome1,
-          nome2: pessoa.nome2 || null,
-          doc1: pessoa.doc1,
-          doc2: pessoa.doc2 || null,
-          dtNsc: pessoa.dtNsc ? new Date(pessoa.dtNsc) : null,
-          situacao: pessoa.situacao || 'ATIVO',
-          // ✅ CORREÇÃO: enderecos e contatos como arrays JSON diretos
-          enderecos: pessoa.enderecos || [],
-          contatos: pessoa.contatos || []
-        };
-
-        const pessoaCriada = await prisma.pessoa.create({
-          data: dadosPessoa
-        });
-
-        pessoaId = pessoaCriada.id;
-      }
-
-      // ✅ PASSO 4: Criar o funcionário
       const matricula = await this._gerarProximaMatricula(prisma);
 
       const dadosFuncionario = {
@@ -125,7 +186,6 @@ class FuncionarioService {
         salario: funcionario.salario ? Number(funcionario.salario) : null,
         situacao: funcionario.situacao || 'ATIVO'
       };
-
 
       const funcionarioCriado = await prisma.funcionario.create({
         data: dadosFuncionario,
@@ -143,10 +203,12 @@ class FuncionarioService {
               enderecos: true,
               contatos: true
             }
-          }
+          },
+          funcao: true
         }
       });
 
+      console.log(`✅ Funcionário criado: ${funcionarioCriado.matricula}`);
       return funcionarioCriado;
 
     } catch (error) {
@@ -169,19 +231,16 @@ class FuncionarioService {
     const skip = (Number(page) - 1) * Number(limit);
     const where = {};
 
-    // Filtro por situação
     if (situacao) {
       where.situacao = situacao;
     }
 
-    // Filtro por função
     if (funcao) {
       where.funcao = {
         funcao: { contains: funcao, mode: 'insensitive' }
       };
     }
 
-    // Busca por nome ou CPF
     if (busca) {
       where.pessoa = {
         OR: [
@@ -209,7 +268,8 @@ class FuncionarioService {
               contatos: true,
               enderecos: true
             }
-          }
+          },
+          funcao: true
         },
         skip,
         take: Number(limit),
@@ -229,14 +289,12 @@ class FuncionarioService {
     };
   }
 
-  /**
-   * Busca um funcionário por ID
-   */
   async buscarPorId(id) {
     const funcionario = await prisma.funcionario.findUnique({
       where: { id },
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true
       }
     });
 
@@ -247,13 +305,9 @@ class FuncionarioService {
     return funcionario;
   }
 
-  /**
-   * Atualiza funcionário E pessoa em transação atômica
-   */
   async atualizarComPessoa(id, dadosCompletos) {
     const { pessoa, funcionario } = dadosCompletos;
 
-    // Verificar se funcionário existe
     const funcionarioExistente = await prisma.funcionario.findUnique({
       where: { id },
       select: { pessoaId: true }
@@ -265,7 +319,6 @@ class FuncionarioService {
 
     try {
       const resultado = await prisma.$transaction(async (tx) => {
-        // 1️⃣ Atualizar Pessoa (se dados foram enviados)
         if (pessoa) {
           const dadosPessoa = {
             nome1: pessoa.nome1,
@@ -279,7 +332,6 @@ class FuncionarioService {
             dadosPessoa.dtNsc = new Date(pessoa.dtNsc);
           }
 
-          // ✅ Arrays JSON diretos
           if (pessoa.enderecos && Array.isArray(pessoa.enderecos)) {
             dadosPessoa.enderecos = pessoa.enderecos;
           }
@@ -294,14 +346,12 @@ class FuncionarioService {
           });
         }
 
-        // 2️⃣ Atualizar Funcionário
         if (funcionario) {
           const dadosFuncionario = {
-            funcaoId: funcionario.funcaoId,  // ✅ TROCAR de funcao para funcaoId
+            funcaoId: funcionario.funcaoId,
             situacao: funcionario.situacao,
             salario: funcionario.salario ? Number(funcionario.salario) : undefined
           };
-
 
           if (funcionario.dataAdmissao) {
             dadosFuncionario.dataAdmissao = new Date(funcionario.dataAdmissao);
@@ -317,11 +367,11 @@ class FuncionarioService {
           });
         }
 
-        // 3️⃣ Buscar funcionário atualizado
         return await tx.funcionario.findUnique({
           where: { id },
           include: {
-            pessoa: true
+            pessoa: true,
+            funcao: true
           }
         });
       });
@@ -338,9 +388,6 @@ class FuncionarioService {
     }
   }
 
-  /**
-   * Deleta funcionário (a pessoa permanece no banco)
-   */
   async deletar(id) {
     const funcionario = await prisma.funcionario.findUnique({
       where: { id }
@@ -357,9 +404,6 @@ class FuncionarioService {
     return { message: 'Funcionário deletado com sucesso' };
   }
 
-  /**
-   * Lista apenas instrutores ativos
-   */
   async listarInstrutores(filtros = {}) {
     const { skip = 0, take = 100 } = filtros;
 
@@ -378,7 +422,8 @@ class FuncionarioService {
             doc1: true,
             contatos: true
           }
-        }
+        },
+        funcao: true
       },
       skip: Number(skip),
       take: Number(take),
@@ -391,9 +436,6 @@ class FuncionarioService {
     };
   }
 
-  /**
-   * Demitir funcionário (soft delete)
-   */
   async demitir(id, dataDemissao) {
     const funcionario = await prisma.funcionario.findUnique({
       where: { id }
@@ -414,16 +456,14 @@ class FuncionarioService {
         dataDemissao: dataDemissao ? new Date(dataDemissao) : new Date()
       },
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true
       }
     });
 
     return funcionarioAtualizado;
   }
 
-  /**
-   * Reativar funcionário
-   */
   async reativar(id) {
     const funcionario = await prisma.funcionario.findUnique({
       where: { id }
@@ -444,7 +484,8 @@ class FuncionarioService {
         dataDemissao: null
       },
       include: {
-        pessoa: true
+        pessoa: true,
+        funcao: true
       }
     });
 

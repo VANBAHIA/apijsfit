@@ -40,8 +40,16 @@ class ContaReceberRepository {
   }
 
   async atualizar(id, data) {
-    return await prisma.contaReceber.update({ where: { id }, data });
+  // Converter dataVencimento para Date se existir
+  if (data.dataVencimento && typeof data.dataVencimento === 'string') {
+    data.dataVencimento = new Date(data.dataVencimento);
   }
+  
+  return await prisma.contaReceber.update({
+    where: { id },
+    data
+  });
+}
 
   async deletar(id) {
     return await prisma.contaReceber.delete({ where: { id } });

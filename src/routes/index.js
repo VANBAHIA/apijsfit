@@ -15,10 +15,9 @@ const matriculaRoutes = require('./matriculaRoutes');
 const contaReceberRoutes = require('./contaReceberRoutes');
 const caixaRoutes = require('./caixaRoutes');
 const contaPagarRoutes = require('./contaPagarRoutes');
-router.use('/contas-pagar', contaPagarRoutes);
-
-
-
+const empresaRoutes = require('./empresaRoutes');
+const licencaRoutes = require('./licencaRoutes');
+const usuarioRoutes = require('./usuarioRoutes');
 
 
 // Registrar rotas
@@ -35,6 +34,9 @@ router.use('/matriculas', matriculaRoutes);
 router.use('/contas-receber', contaReceberRoutes);
 router.use('/contas-pagar', contaPagarRoutes);
 router.use('/caixas', caixaRoutes);
+router.use('/empresas', empresaRoutes);
+router.use('/licencas', licencaRoutes);
+router.use('/usuarios', usuarioRoutes);
 
 
 
@@ -58,8 +60,10 @@ router.get('/health', (req, res) => {
       matriculas:'/api/matriculas',
       contaReceber: '/api/contas-receber',
       contaPagar: '/api/contas-pagar',
-      caixas: '/api/caixas' 
-    }
+      caixas: '/api/caixas', 
+      empresas:'/api/empresas',
+    licensas: '/api/licensas',
+  usuarios: '/api/usuarios'    }
   });
 });
 
@@ -82,7 +86,10 @@ router.get('/', (req, res) => {
       { path: '/api/matriculas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/contas-receber', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/contas-pagar', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/caixas', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      { path: '/api/caixas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/empresas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/licensas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/usuarios', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
       
     ]
   });

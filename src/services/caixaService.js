@@ -1,10 +1,11 @@
 // src/services/caixaService.js
 
 const caixaRepository = require('../repositories/caixaRepository');
+const prisma = require('../config/database');
 const ApiError = require('../utils/apiError');
 
 class CaixaService {
-  
+
   async gerarNumero() {
     const ultimoCaixa = await prisma.caixa.findFirst({
       orderBy: { numero: 'desc' },
@@ -12,10 +13,10 @@ class CaixaService {
     });
 
     if (!ultimoCaixa) return 'CX00001';
-    
+
     const ultimoNumero = parseInt(ultimoCaixa.numero.replace('CX', ''));
     const proximoNumero = ultimoNumero + 1;
-    
+
     return `CX${proximoNumero.toString().padStart(5, '0')}`;
   }
 
@@ -28,7 +29,7 @@ class CaixaService {
       throw new ApiError(400, `Já existe um caixa aberto (${caixaAberto.numero})`);
     }
 
-    if (!valorAbertura || valorAbertura < 0) {
+    if (valorAbertura === undefined || valorAbertura === null || valorAbertura < 0) {
       throw new ApiError(400, 'Valor de abertura inválido');
     }
 
@@ -51,20 +52,29 @@ class CaixaService {
     });
   }
 
-  async registrarMovimento(caixaId, movimento) {
-    const { 
-      tipo, 
-      valor, 
-      descricao, 
-      formaPagamento, 
+  /**
+   * 🆕 NOVO: Registrar movimento com suporte a transação
+   * @param {string} caixaId - ID do caixa
+   * @param {object} movimento - Dados do movimento
+   * @param {object} tx - Transação do Prisma (opcional)
+   */
+  async registrarMovimento(caixaId, movimento, tx = null) {
+    const {
+      tipo,
+      valor,
+      descricao,
+      formaPagamento,
       contaReceberId,
       contaPagarId,
       categoria
     } = movimento;
 
-    const caixa = await caixaRepository.buscarPorId(caixaId);
+    // Usar transação se fornecida, senão usar prisma normal
+    const db = tx || prisma;
+
+    const caixa = await db.caixa.findUnique({ where: { id: caixaId } });
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
-    
+
     if (caixa.status !== 'ABERTO') {
       throw new ApiError(400, 'Caixa não está aberto');
     }
@@ -94,19 +104,22 @@ class CaixaService {
     };
 
     const movimentos = [...caixa.movimentos, novoMovimento];
-    
-    const totalEntradas = tipo === 'ENTRADA' 
+
+    const totalEntradas = tipo === 'ENTRADA'
       ? caixa.totalEntradas + Number(valor)
       : caixa.totalEntradas;
-      
+
     const totalSaidas = tipo === 'SAIDA'
       ? caixa.totalSaidas + Number(valor)
       : caixa.totalSaidas;
 
-    return await caixaRepository.atualizar(caixaId, {
-      movimentos,
-      totalEntradas,
-      totalSaidas
+    return await db.caixa.update({
+      where: { id: caixaId },
+      data: {
+        movimentos,
+        totalEntradas,
+        totalSaidas
+      }
     });
   }
 
@@ -115,7 +128,7 @@ class CaixaService {
 
     const caixa = await caixaRepository.buscarPorId(id);
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
-    
+
     if (caixa.status === 'FECHADO') {
       throw new ApiError(400, 'Caixa já está fechado');
     }
@@ -130,7 +143,7 @@ class CaixaService {
 
     const saldoEsperado = caixa.valorAbertura + caixa.totalEntradas - caixa.totalSaidas;
     const diferenca = Number(valorFechamento) - saldoEsperado;
-    
+
     const agora = new Date();
 
     let observacoesFechamento = observacoes || '';
@@ -152,7 +165,9 @@ class CaixaService {
 
   async buscarAberto() {
     const caixa = await caixaRepository.buscarAberto();
-    if (!caixa) throw new ApiError(404, 'Nenhum caixa aberto');
+    if (!caixa) {
+      throw new ApiError(404, 'Nenhum caixa aberto. Abra um caixa antes de registrar pagamentos.');
+    }
     return caixa;
   }
 
@@ -169,7 +184,7 @@ class CaixaService {
   async removerMovimento(caixaId, movimentoId) {
     const caixa = await caixaRepository.buscarPorId(caixaId);
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
-    
+
     if (caixa.status === 'FECHADO') {
       throw new ApiError(400, 'Não é possível remover movimento de caixa fechado');
     }
@@ -180,11 +195,11 @@ class CaixaService {
     }
 
     const movimentos = caixa.movimentos.filter(m => m.id !== movimentoId);
-    
+
     const totalEntradas = movimento.tipo === 'ENTRADA'
       ? caixa.totalEntradas - movimento.valor
       : caixa.totalEntradas;
-      
+
     const totalSaidas = movimento.tipo === 'SAIDA'
       ? caixa.totalSaidas - movimento.valor
       : caixa.totalSaidas;
@@ -199,11 +214,9 @@ class CaixaService {
   async relatorioCaixa(id) {
     const caixa = await this.buscarPorId(id);
 
-    // Separar movimentos por tipo
     const entradas = caixa.movimentos.filter(m => m.tipo === 'ENTRADA');
     const saidas = caixa.movimentos.filter(m => m.tipo === 'SAIDA');
 
-    // Agrupar saídas por categoria
     const saidasPorCategoria = saidas.reduce((acc, mov) => {
       const categoria = mov.categoria || 'OUTROS';
       if (!acc[categoria]) {
@@ -215,7 +228,6 @@ class CaixaService {
       return acc;
     }, {});
 
-    // Agrupar entradas por forma de pagamento
     const entradasPorFormaPagamento = entradas.reduce((acc, mov) => {
       const forma = mov.formaPagamento || 'NÃO INFORMADO';
       if (!acc[forma]) {
@@ -227,8 +239,8 @@ class CaixaService {
     }, {});
 
     const saldoEsperado = caixa.valorAbertura + caixa.totalEntradas - caixa.totalSaidas;
-    const diferenca = caixa.status === 'FECHADO' 
-      ? caixa.valorFechamento - saldoEsperado 
+    const diferenca = caixa.status === 'FECHADO'
+      ? caixa.valorFechamento - saldoEsperado
       : 0;
 
     return {
@@ -260,7 +272,7 @@ class CaixaService {
         saidasPorCategoria,
         entradasPorFormaPagamento
       },
-      movimentos: caixa.movimentos.sort((a, b) => 
+      movimentos: caixa.movimentos.sort((a, b) =>
         new Date(a.dataHora) - new Date(b.dataHora)
       )
     };
@@ -277,7 +289,7 @@ class CaixaService {
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
 
     const saldoAtual = caixa.valorAbertura + caixa.totalEntradas - caixa.totalSaidas;
-    
+
     if (valor > saldoAtual) {
       throw new ApiError(400, `Valor de sangria (R$ ${valor.toFixed(2)}) maior que saldo disponível (R$ ${saldoAtual.toFixed(2)})`);
     }

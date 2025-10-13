@@ -1,11 +1,14 @@
 const prisma = require('../config/database');
 
+
 class CaixaRepository {
   async criar(data) {
     return await prisma.caixa.create({ data });
   }
 
-  async buscarTodos(filtros = {}) {
+async buscarTodos(filtros = {}) {
+  try {
+    console.log('📦 Repository - filtros recebidos:', filtros);
     const { status, dataInicio, dataFim, skip = 0, take = 10 } = filtros;
     
     const where = {};
@@ -17,6 +20,8 @@ class CaixaRepository {
       if (dataFim) where.dataAbertura.lte = new Date(dataFim);
     }
 
+    console.log('📦 Executando query com where:', where);
+
     const [total, caixas] = await Promise.all([
       prisma.caixa.count({ where }),
       prisma.caixa.findMany({
@@ -27,8 +32,13 @@ class CaixaRepository {
       })
     ]);
 
+    console.log('✅ Query executada - total:', total, 'caixas:', caixas.length);
     return { total, caixas };
+  } catch (error) {
+    console.error('❌ Erro no repository:', error);
+    throw error;
   }
+}
 
   async buscarPorId(id) {
     return await prisma.caixa.findUnique({ where: { id } });

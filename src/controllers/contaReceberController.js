@@ -30,6 +30,7 @@ class ContaReceberController {
     res.status(200).json(new ApiResponse(200, conta, 'Conta encontrada'));
   });
 
+  // 🆕 MODIFICADO: Não recebe mais caixaId
   registrarPagamento = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const conta = await contaReceberService.registrarPagamento(id, req.body);
@@ -44,6 +45,13 @@ class ContaReceberController {
     
     const conta = await contaReceberService.cancelar(id, motivo);
     res.status(200).json(new ApiResponse(200, conta, 'Conta cancelada com sucesso'));
+  });
+
+  // 🆕 NOVO: Atualizar conta
+  atualizar = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const conta = await contaReceberService.atualizar(id, req.body);
+    res.status(200).json(new ApiResponse(200, conta, 'Conta atualizada com sucesso'));
   });
 
   atualizarVencidas = asyncHandler(async (req, res) => {

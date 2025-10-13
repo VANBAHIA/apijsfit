@@ -418,3 +418,85 @@ model ContaPagar {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+// Adicione ao seu schema.prisma
+
+model Empresa {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  codigo      String   @unique
+  razaoSocial String
+  nomeFantasia String?
+  cnpj        String   @unique
+  inscricaoEstadual String?
+  inscricaoMunicipal String?
+  
+  endereco    Json?    // { logradouro, numero, complemento, bairro, cidade, estado, cep }
+  contatos    Json?    // [{ tipo: 'EMAIL' | 'TELEFONE' | 'CELULAR', valor, principal }]
+  
+  responsavel String?
+  email       String?
+  site        String?
+  
+  situacao    String   @default("ATIVO") // ATIVO, INATIVO, BLOQUEADO
+  
+  // Relacionamentos
+  licencas    Licenca[]
+  usuarios    Usuario[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("empresas")
+}
+
+model Licenca {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  empresaId       String   @db.ObjectId
+  empresa         Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  
+  chave           String   @unique // Chave de ativação UUID
+  tipo            String   // TRIAL, MENSAL, ANUAL, VITALICIA
+  
+  dataInicio      DateTime
+  dataExpiracao   DateTime
+  
+  maxUsuarios     Int      @default(5)
+  maxAlunos       Int      @default(100)
+  
+  funcionalidades Json     // Array de módulos liberados: ['ALUNOS', 'FINANCEIRO', 'TREINOS']
+  
+  situacao        String   @default("ATIVA") // ATIVA, EXPIRADA, CANCELADA, SUSPENSA
+  
+  observacoes     String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("licencas")
+}
+
+model Usuario {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  empresaId   String   @db.ObjectId
+  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  
+  nomeUsuario String   @unique // Username para login
+  nome        String
+  email       String   @unique
+  senha       String   // Hash bcrypt
+  
+  perfil      String   @default("USUARIO") // ADMIN, GERENTE, USUARIO, INSTRUTOR
+  
+  permissoes  Json     // Array de permissões específicas
+  
+  foto        String?
+  telefone    String?
+  
+  situacao    String   @default("ATIVO") // ATIVO, INATIVO, BLOQUEADO
+  
+  ultimoAcesso DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("usuarios")
+}

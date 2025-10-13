@@ -1,5 +1,7 @@
 const contaPagarRepository = require('../repositories/contaPagarRepository');
 const funcionarioService = require('./funcionarioService');
+const caixaService = require('./caixaService'); // ✅ Import já existe
+const prisma = require('../config/database');
 const ApiError = require('../utils/apiError');
 
 class ContaPagarService {
@@ -106,60 +108,104 @@ class ContaPagarService {
     });
   }
 
+  /**
+   * 🆕 NOVO: Registrar pagamento com controle automático de caixa
+   * @param {string} id - ID da conta
+   * @param {object} data - Dados do pagamento
+   */
   async registrarPagamento(id, data) {
     const { 
       valorPago, 
       formaPagamento, 
-      dataPagamento, 
-      caixaId,
+      dataPagamento,
       valorJuros = 0,
       valorMulta = 0
     } = data;
 
-    const conta = await contaPagarRepository.buscarPorId(id);
-    if (!conta) throw new ApiError(404, 'Conta não encontrada');
-    
-    if (conta.status === 'PAGO') {
-      throw new ApiError(400, 'Conta já está paga');
+    // Validações
+    if (!valorPago || valorPago <= 0) {
+      throw new ApiError(400, 'Valor pago deve ser maior que zero');
     }
 
     if (!formaPagamento) {
       throw new ApiError(400, 'Forma de pagamento é obrigatória');
     }
 
-    const novoValorJuros = Number(valorJuros);
-    const novoValorMulta = Number(valorMulta);
-    const valorTotalPago = conta.valorPago + Number(valorPago);
-    const valorFinalAtualizado = conta.valorFinal + novoValorJuros + novoValorMulta;
-    const novoValorRestante = valorFinalAtualizado - valorTotalPago;
+    const formasPagamentoValidas = [
+      'DINHEIRO', 'PIX', 'CARTAO_CREDITO', 'CARTAO_DEBITO', 
+      'TRANSFERENCIA', 'BOLETO', 'CHEQUE'
+    ];
 
-    const novoStatus = novoValorRestante <= 0 ? 'PAGO' : 'PENDENTE';
-
-    // Atualizar conta
-    const contaAtualizada = await contaPagarRepository.atualizar(id, {
-      valorPago: valorTotalPago,
-      valorRestante: novoValorRestante,
-      valorJuros: conta.valorJuros + novoValorJuros,
-      valorMulta: conta.valorMulta + novoValorMulta,
-      valorFinal: valorFinalAtualizado,
-      status: novoStatus,
-      dataPagamento: novoStatus === 'PAGO' ? new Date(dataPagamento || Date.now()) : null,
-      formaPagamento
-    });
-
-    // Registrar movimento no caixa (se caixaId fornecido)
-    if (caixaId) {
-      const caixaService = require('./caixaService');
-      await caixaService.registrarMovimento(caixaId, {
-        tipo: 'SAIDA',
-        valor: valorPago,
-        descricao: `Pagamento conta ${conta.numero} - ${conta.descricao}`,
-        formaPagamento,
-        contaPagarId: id
-      });
+    if (!formasPagamentoValidas.includes(formaPagamento)) {
+      throw new ApiError(400, 'Forma de pagamento inválida');
     }
 
-    return contaAtualizada;
+    // 🆕 1. Buscar caixa aberto AUTOMATICAMENTE
+    const caixaAberto = await caixaService.buscarAberto();
+
+    // 🆕 2. Usar TRANSAÇÃO para garantir atomicidade
+    return await prisma.$transaction(async (tx) => {
+      
+      // 3. Buscar conta dentro da transação
+      const conta = await tx.contaPagar.findUnique({ where: { id } });
+      if (!conta) throw new ApiError(404, 'Conta não encontrada');
+      
+      if (conta.status === 'PAGO') {
+        throw new ApiError(400, 'Conta já está paga');
+      }
+
+      if (conta.status === 'CANCELADO') {
+        throw new ApiError(400, 'Não é possível pagar conta cancelada');
+      }
+
+      // 4. Calcular novos valores
+      const novoValorJuros = conta.valorJuros + Number(valorJuros);
+      const novoValorMulta = conta.valorMulta + Number(valorMulta);
+      const valorTotalPago = conta.valorPago + Number(valorPago);
+      const valorFinalAtualizado = conta.valorFinal + Number(valorJuros) + Number(valorMulta);
+      const novoValorRestante = valorFinalAtualizado - valorTotalPago;
+
+      if (valorTotalPago > valorFinalAtualizado) {
+        throw new ApiError(400, 
+          `Valor pago (R$ ${valorTotalPago.toFixed(2)}) excede o valor da conta (R$ ${valorFinalAtualizado.toFixed(2)})`
+        );
+      }
+
+      const novoStatus = novoValorRestante <= 0 ? 'PAGO' : 'PENDENTE';
+
+      // 5. Atualizar conta dentro da transação
+      const contaAtualizada = await tx.contaPagar.update({
+        where: { id },
+        data: {
+          valorPago: valorTotalPago,
+          valorRestante: novoValorRestante,
+          valorJuros: novoValorJuros,
+          valorMulta: novoValorMulta,
+          valorFinal: valorFinalAtualizado,
+          status: novoStatus,
+          dataPagamento: novoStatus === 'PAGO' 
+            ? new Date(dataPagamento || Date.now()) 
+            : conta.dataPagamento,
+          formaPagamento
+        }
+      });
+
+      // 🆕 6. Registrar movimento no caixa OBRIGATORIAMENTE (dentro da transação)
+      await caixaService.registrarMovimento(
+        caixaAberto.id,
+        {
+          tipo: 'SAIDA',
+          valor: valorPago,
+          descricao: `Pagamento conta ${conta.numero} - ${conta.categoria} - ${conta.descricao}`,
+          formaPagamento,
+          contaPagarId: id,
+          categoria: conta.categoria
+        },
+        tx // 🆕 Passa a transação
+      );
+
+      return contaAtualizada;
+    });
   }
 
   async atualizarStatusVencidas() {
@@ -188,6 +234,10 @@ class ContaPagarService {
     
     if (conta.status === 'PAGO') {
       throw new ApiError(400, 'Não é possível editar conta já paga');
+    }
+
+    if (conta.status === 'CANCELADO') {
+      throw new ApiError(400, 'Não é possível editar conta cancelada');
     }
 
     // Validar dados se foram enviados
@@ -228,13 +278,13 @@ class ContaPagarService {
       throw new ApiError(400, 'Não é possível cancelar conta já paga');
     }
 
-    if (!motivo) {
+    if (!motivo || motivo.trim() === '') {
       throw new ApiError(400, 'Motivo do cancelamento é obrigatório');
     }
 
     return await contaPagarRepository.atualizar(id, {
       status: 'CANCELADO',
-      observacoes: `${conta.observacoes || ''}\nCANCELADO: ${motivo}`
+      observacoes: `${conta.observacoes || ''}\nCANCELADO: ${motivo.trim()}`
     });
   }
 

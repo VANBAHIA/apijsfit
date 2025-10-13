@@ -9,6 +9,9 @@ const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const ApiError = require('./utils/apiError');
 
+// ✅ IMPORTAR SCHEDULER
+const jobScheduler = require('./jobs/scheduler');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -40,6 +43,9 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📝 Ambiente: ${process.env.NODE_ENV}`);
   console.log(`🔗 URL: http://localhost:${PORT}`);
+  
+  // ✅ INICIAR JOBS AGENDADOS
+  jobScheduler.iniciar();
 });
 
 module.exports = app;

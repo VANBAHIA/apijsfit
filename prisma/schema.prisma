@@ -155,21 +155,30 @@ enum Periodicidade {
   DIAS // Personalizado: X dias
 }
 
+enum TipoCobranca {
+  RECORRENTE     // Gera cobrança todo mês/período
+  UNICA          // Gera apenas 1 cobrança
+}
+
 model Plano {
   id               String        @id @default(auto()) @map("_id") @db.ObjectId
   codigo           String        @unique
   nome             String
   periodicidade    Periodicidade
-  numeroMeses      Int? // Usado quando periodicidade = MESES
-  numeroDias       Int? // Usado quando periodicidade = DIAS
+  numeroMeses      Int?
+  numeroDias       Int?
+  
+  // ✅ NOVO CAMPO
+  tipoCobranca     TipoCobranca  @default(RECORRENTE)
+  
   valorMensalidade Float
-  status           String        @default("ATIVO") // ATIVO, INATIVO
+  status           String        @default("ATIVO")
   descricao        String?
 
-  matriculas Matricula[] // Relação reversa
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  matriculas       Matricula[]
+  
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@map("planos")
 }
@@ -275,6 +284,9 @@ model Matricula {
   // Controle Financeiro (SUGESTÃO ADICIONAL)
   formaPagamento String? // "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO"
   parcelamento   Int?    @default(1) // Número de parcelas
+  ultimaCobrancaGerada DateTime? // Data da última cobrança gerada
+  proximaCobrancaData  DateTime? // Próxima data prevista
+
 
   // Observações
   observacoes String?
@@ -285,6 +297,7 @@ model Matricula {
 
   @@map("matriculas")
 }
+
 model ContaReceber {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
   numero            String   @unique  // Número sequencial da conta
@@ -313,13 +326,15 @@ model ContaReceber {
   observacoes       String?
   formaPagamento    String?  // DINHEIRO, CARTAO_CREDITO, CARTAO_DEBITO, PIX, BOLETO
   
-  // Controle de parcelas
+  // ✅ NOVOS CAMPOS: Controle de parcelas
   numeroParcela     Int?
   totalParcelas     Int?
   
   // Auditoria
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  
+  @@map("contas_receber")
 }
 
 model Caixa {

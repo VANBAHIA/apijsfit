@@ -3,10 +3,18 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/apiResponse');
 
 class MatriculaController {
+  /**
+   * ✅ ATUALIZADO: Criar matrícula (agora retorna também a primeira cobrança)
+   */
   criar = asyncHandler(async (req, res) => {
-    const matricula = await matriculaService.criar(req.body);
+    const resultado = await matriculaService.criar(req.body);
+    
     res.status(201).json(
-      new ApiResponse(201, matricula, 'Matrícula criada com sucesso')
+      new ApiResponse(
+        201, 
+        resultado, 
+        'Matrícula criada com sucesso e primeira cobrança gerada'
+      )
     );
   });
 

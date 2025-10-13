@@ -26,6 +26,9 @@ class PlanoService {
   /**
    * Valida os campos do plano
    */
+
+  // src/services/planoService.js
+
   validarPlano(data) {
     if (!data.nome) {
       throw new ApiError(400, 'Nome do plano é obrigatório');
@@ -39,7 +42,17 @@ class PlanoService {
       throw new ApiError(400, 'Valor da mensalidade deve ser maior que zero');
     }
 
-    // Validar campos específicos por periodicidade
+    // ✅ NOVA VALIDAÇÃO
+    if (!data.tipoCobranca) {
+      throw new ApiError(400, 'Tipo de cobrança é obrigatório (RECORRENTE ou UNICA)');
+    }
+
+    // ✅ VALIDAR CONSISTÊNCIA
+    if (data.tipoCobranca === 'UNICA' && data.periodicidade === 'MENSAL') {
+      throw new ApiError(400, 'Plano com cobrança única não pode ter periodicidade MENSAL');
+    }
+
+    // Validações específicas por periodicidade
     if (data.periodicidade === 'MESES') {
       if (!data.numeroMeses || data.numeroMeses <= 0) {
         throw new ApiError(400, 'Número de meses é obrigatório para periodicidade MESES');

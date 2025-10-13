@@ -133,7 +133,7 @@ class CaixaService {
       throw new ApiError(400, 'Caixa já está fechado');
     }
 
-    if (!valorFechamento || valorFechamento < 0) {
+    if (valorFechamento === undefined || valorFechamento === null || valorFechamento < 0) {
       throw new ApiError(400, 'Valor de fechamento inválido');
     }
 
@@ -278,30 +278,62 @@ class CaixaService {
     };
   }
 
+ 
   async sangria(caixaId, data) {
-    const { valor, descricao, usuarioResponsavel } = data;
+  const { valor, descricao, usuarioResponsavel } = data;
 
-    if (!valor || valor <= 0) {
-      throw new ApiError(400, 'Valor de sangria deve ser maior que zero');
-    }
-
-    const caixa = await caixaRepository.buscarPorId(caixaId);
-    if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
-
-    const saldoAtual = caixa.valorAbertura + caixa.totalEntradas - caixa.totalSaidas;
-
-    if (valor > saldoAtual) {
-      throw new ApiError(400, `Valor de sangria (R$ ${valor.toFixed(2)}) maior que saldo disponível (R$ ${saldoAtual.toFixed(2)})`);
-    }
-
-    return await this.registrarMovimento(caixaId, {
-      tipo: 'SAIDA',
-      valor,
-      descricao: `SANGRIA: ${descricao} - Responsável: ${usuarioResponsavel}`,
-      categoria: 'SANGRIA',
-      formaPagamento: 'SANGRIA'
-    });
+  // 1. Validar valor informado
+  if (!valor || valor <= 0) {
+    throw new ApiError(400, 'Valor de sangria deve ser maior que zero');
   }
+
+  // 2. Validar usuário
+  if (!usuarioResponsavel) {
+    throw new ApiError(400, 'Usuário responsável pela sangria é obrigatório');
+  }
+
+  // 3. Buscar o caixa
+  const caixa = await caixaRepository.buscarPorId(caixaId);
+  if (!caixa) {
+    throw new ApiError(404, 'Caixa não encontrado');
+  }
+
+  // 4. Validar status
+  if (caixa.status !== 'ABERTO') {
+    throw new ApiError(400, 'Não é possível realizar sangria em caixa fechado');
+  }
+
+  // 5. Calcular saldo atual ANTES de registrar movimento
+  const saldoAtual = Number(caixa.valorAbertura) + 
+                     Number(caixa.totalEntradas) - 
+                     Number(caixa.totalSaidas);
+
+  // 6. VALIDAÇÃO CRÍTICA: Bloquear se não houver saldo suficiente
+  if (Number(valor) > saldoAtual) {
+    throw new ApiError(
+      400, 
+      `Saldo insuficiente. Saldo disponível: R$ ${saldoAtual.toFixed(2)} - Valor solicitado: R$ ${Number(valor).toFixed(2)}`
+    );
+  }
+
+  // 7. Bloquear sangria se o saldo ficar negativo
+  const saldoAposSangria = saldoAtual - Number(valor);
+  if (saldoAposSangria < 0) {
+    throw new ApiError(
+      400, 
+      `Operação negada. A sangria deixaria o caixa com saldo negativo de R$ ${Math.abs(saldoAposSangria).toFixed(2)}`
+    );
+  }
+
+  // 8. Registrar o movimento
+  return await this.registrarMovimento(caixaId, {
+    tipo: 'SAIDA',
+    valor: Number(valor),
+    descricao: `SANGRIA: ${descricao || 'Sem descrição'} - Responsável: ${usuarioResponsavel}`,
+    categoria: 'SANGRIA',
+    formaPagamento: 'DINHEIRO'
+  });
+}
 
   async suprimento(caixaId, data) {
     const { valor, descricao, usuarioResponsavel } = data;

@@ -3,6 +3,7 @@ const alunoRepository = require('../repositories/alunoRepository');
 const planoRepository = require('../repositories/planoRepository');
 const turmaRepository = require('../repositories/turmaRepository');
 const descontoRepository = require('../repositories/descontoRepository');
+const contaReceberService = require('./contaReceberService');
 const ApiError = require('../utils/apiError');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -32,10 +33,46 @@ class MatriculaService {
   calcularDataFim(dataInicio, plano) {
     const data = new Date(dataInicio);
 
-    if (plano.periodicidade === 'MESES') {
-      data.setMonth(data.getMonth() + plano.numeroMeses);
-    } else if (plano.periodicidade === 'DIAS') {
-      data.setDate(data.getDate() + plano.numeroDias);
+    switch (plano.periodicidade) {
+      case 'MENSAL':
+        data.setMonth(data.getMonth() + 1);
+        break;
+      
+      case 'BIMESTRAL':
+        data.setMonth(data.getMonth() + 2);
+        break;
+      
+      case 'TRIMESTRAL':
+        data.setMonth(data.getMonth() + 3);
+        break;
+      
+      case 'QUADRIMESTRAL':
+        data.setMonth(data.getMonth() + 4);
+        break;
+      
+      case 'SEMESTRAL':
+        data.setMonth(data.getMonth() + 6);
+        break;
+      
+      case 'ANUAL':
+        data.setFullYear(data.getFullYear() + 1);
+        break;
+      
+      case 'MESES':
+        if (plano.numeroMeses) {
+          data.setMonth(data.getMonth() + plano.numeroMeses);
+        }
+        break;
+      
+      case 'DIAS':
+        if (plano.numeroDias) {
+          data.setDate(data.getDate() + plano.numeroDias);
+        }
+        break;
+      
+      default:
+        // Se não especificado, assume 1 mês
+        data.setMonth(data.getMonth() + 1);
     }
 
     return data;
@@ -68,6 +105,93 @@ class MatriculaService {
     };
   }
 
+  /**
+   * ✅ NOVA FUNÇÃO: Calcula data de vencimento da primeira parcela
+   */
+  calcularPrimeiroVencimento(dataInicio, diaVencimento, plano) {
+    const vencimento = new Date(dataInicio);
+
+    // Se dia de vencimento foi especificado
+    if (diaVencimento) {
+      vencimento.setDate(diaVencimento);
+
+      // Se o dia já passou no mês de início, vence no próximo mês
+      if (vencimento < dataInicio) {
+        vencimento.setMonth(vencimento.getMonth() + 1);
+      }
+    } else {
+      // Se não especificou dia, vence no mesmo dia da matrícula
+      // (ou em X dias, conforme regra de negócio)
+      vencimento.setDate(vencimento.getDate() + 5); // Exemplo: 5 dias após matrícula
+    }
+
+    // Ajustar para último dia do mês se necessário
+    const ultimoDia = new Date(
+      vencimento.getFullYear(),
+      vencimento.getMonth() + 1,
+      0
+    ).getDate();
+
+    if (diaVencimento && diaVencimento > ultimoDia) {
+      vencimento.setDate(ultimoDia);
+    }
+
+    return vencimento;
+  }
+
+  /**
+   * ✅ NOVA FUNÇÃO: Gera primeira cobrança automaticamente
+   */
+  async gerarPrimeiraCobranca(matricula, plano, dataInicio, diaVencimento, descontoId) {
+    try {
+      // Calcular data de vencimento
+      const dataVencimento = this.calcularPrimeiroVencimento(
+        dataInicio,
+        diaVencimento,
+        plano
+      );
+
+      // Determinar observação baseada no tipo de cobrança
+      let observacao;
+      if (plano.tipoCobranca === 'UNICA') {
+        observacao = `Pagamento único - Plano: ${plano.nome} - Matrícula: ${matricula.codigo}`;
+      } else {
+        const mesRef = this.formatarMesReferencia(dataVencimento);
+        observacao = `1ª Parcela - Plano: ${plano.nome} - Matrícula: ${matricula.codigo} - Ref: ${mesRef}`;
+      }
+
+      // Criar conta a receber
+      const contaReceber = await contaReceberService.criar({
+        alunoId: matricula.alunoId,
+        planoId: matricula.planoId,
+        descontoId: descontoId || null,
+        dataVencimento,
+        observacoes: observacao,
+        numeroParcela: 1,
+        totalParcelas: plano.tipoCobranca === 'UNICA' ? 1 : null
+      });
+
+      console.log(`✅ [MATRÍCULA] Primeira cobrança gerada automaticamente: ${contaReceber.numero}`);
+
+      return contaReceber;
+    } catch (error) {
+      console.error('❌ [MATRÍCULA] Erro ao gerar primeira cobrança:', error);
+      throw new ApiError(500, `Erro ao gerar primeira cobrança: ${error.message}`);
+    }
+  }
+
+  /**
+   * Formata mês de referência (YYYY-MM)
+   */
+  formatarMesReferencia(data) {
+    const ano = data.getFullYear();
+    const mes = (data.getMonth() + 1).toString().padStart(2, '0');
+    return `${ano}-${mes}`;
+  }
+
+  /**
+   * ✅ ATUALIZADO: Criar matrícula com geração automática de cobrança
+   */
   async criar(data) {
     // Validações
     if (!data.alunoId) throw new ApiError(400, 'Aluno é obrigatório');
@@ -81,6 +205,9 @@ class MatriculaService {
     // Verificar se plano existe
     const plano = await planoRepository.buscarPorId(data.planoId);
     if (!plano) throw new ApiError(404, 'Plano não encontrado');
+    if (plano.status !== 'ATIVO') {
+      throw new ApiError(400, 'Plano inativo - não é possível criar matrícula');
+    }
 
     // Verificar turma (se fornecida)
     if (data.turmaId) {
@@ -88,50 +215,112 @@ class MatriculaService {
       if (!turma) throw new ApiError(404, 'Turma não encontrada');
     }
 
-    // Gerar código
-    const codigo = await this.gerarProximoCodigo();
-
-    // Calcular data fim
-    const dataFim = this.calcularDataFim(data.dataInicio, plano);
-
-    // Calcular valores
-    const valores = await this.calcularValores(data.planoId, data.descontoId);
-
-    // Dia de vencimento (para planos mensais)
-    let diaVencimento = null;
-    if (plano.periodicidade === 'MESES') {
-      diaVencimento = data.diaVencimento || new Date(data.dataInicio).getDate();
+    // Verificar desconto (se fornecido)
+    if (data.descontoId) {
+      const desconto = await descontoRepository.buscarPorId(data.descontoId);
+      if (!desconto) throw new ApiError(404, 'Desconto não encontrado');
+      if (desconto.status !== 'ATIVO') {
+        throw new ApiError(400, 'Desconto inativo - não pode ser aplicado');
+      }
     }
 
-    const dadosMatricula = {
-      codigo,
-      alunoId: data.alunoId,
-      planoId: data.planoId,
-      turmaId: data.turmaId || null,
-      descontoId: data.descontoId || null,
-      dataInicio: new Date(data.dataInicio),
-      dataFim,
-      diaVencimento,
-      ...valores,
-      situacao: data.situacao || 'ATIVA',
-      formaPagamento: data.formaPagamento || null,
-      parcelamento: data.parcelamento || 1,
-      observacoes: data.observacoes || null
-    };
+    try {
+      // ✅ TRANSAÇÃO: Criar matrícula + primeira cobrança atomicamente
+      const resultado = await prisma.$transaction(async (tx) => {
+        
+        // 1️⃣ Gerar código da matrícula
+        const codigo = await this.gerarProximoCodigo();
 
-    return await matriculaRepository.criar(dadosMatricula);
+        // 2️⃣ Calcular data fim
+        const dataFim = this.calcularDataFim(data.dataInicio, plano);
+
+        // 3️⃣ Calcular valores
+        const valores = await this.calcularValores(data.planoId, data.descontoId);
+
+        // 4️⃣ Definir dia de vencimento
+        let diaVencimento = null;
+        if (plano.tipoCobranca === 'RECORRENTE') {
+          diaVencimento = data.diaVencimento || new Date(data.dataInicio).getDate();
+        }
+
+        // 5️⃣ Criar matrícula
+        const dadosMatricula = {
+          codigo,
+          alunoId: data.alunoId,
+          planoId: data.planoId,
+          turmaId: data.turmaId || null,
+          descontoId: data.descontoId || null,
+          dataInicio: new Date(data.dataInicio),
+          dataFim,
+          diaVencimento,
+          ...valores,
+          situacao: data.situacao || 'ATIVA',
+          formaPagamento: data.formaPagamento || null,
+          parcelamento: data.parcelamento || 1,
+          observacoes: data.observacoes || null
+        };
+
+        const matricula = await tx.matricula.create({
+          data: dadosMatricula,
+          include: {
+            aluno: { include: { pessoa: true } },
+            plano: true,
+            turma: true,
+            desconto: true
+          }
+        });
+
+        console.log(`✅ [MATRÍCULA] Criada: ${matricula.codigo}`);
+
+        // 6️⃣ Gerar primeira cobrança automaticamente
+        const primeiraCobranca = await this.gerarPrimeiraCobranca(
+          matricula,
+          plano,
+          data.dataInicio,
+          diaVencimento,
+          data.descontoId
+        );
+
+        return {
+          matricula,
+          primeiraCobranca
+        };
+      });
+
+      console.log('✅ [MATRÍCULA] Transação concluída com sucesso!');
+      
+      return resultado;
+
+    } catch (error) {
+      console.error('❌ [MATRÍCULA] Erro na transação:', error);
+      
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(500, `Erro ao criar matrícula: ${error.message}`);
+    }
   }
 
+  /**
+   * Listar todas as matrículas
+   */
   async listarTodos(filtros) {
     return await matriculaRepository.buscarTodos(filtros);
   }
 
+  /**
+   * Buscar matrícula por ID
+   */
   async buscarPorId(id) {
     const matricula = await matriculaRepository.buscarPorId(id);
     if (!matricula) throw new ApiError(404, 'Matrícula não encontrada');
     return matricula;
   }
 
+  /**
+   * Atualizar matrícula
+   */
   async atualizar(id, data) {
     const matricula = await matriculaRepository.buscarPorId(id);
     if (!matricula) throw new ApiError(404, 'Matrícula não encontrada');
@@ -160,6 +349,9 @@ class MatriculaService {
     return await matriculaRepository.atualizar(id, data);
   }
 
+  /**
+   * Inativar matrícula
+   */
   async inativar(id, motivo) {
     return await matriculaRepository.atualizar(id, {
       situacao: 'INATIVA',
@@ -167,6 +359,9 @@ class MatriculaService {
     });
   }
 
+  /**
+   * Reativar matrícula
+   */
   async reativar(id) {
     return await matriculaRepository.atualizar(id, {
       situacao: 'ATIVA',
@@ -174,6 +369,9 @@ class MatriculaService {
     });
   }
 
+  /**
+   * Deletar matrícula
+   */
   async deletar(id) {
     const matricula = await matriculaRepository.buscarPorId(id);
     if (!matricula) throw new ApiError(404, 'Matrícula não encontrada');

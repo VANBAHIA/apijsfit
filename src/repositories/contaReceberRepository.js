@@ -5,13 +5,14 @@ class ContaReceberRepository {
     return await prisma.contaReceber.create({ data });
   }
 
+
   async buscarTodos(filtros = {}) {
     const { status, alunoId, dataInicio, dataFim, skip = 0, take = 10 } = filtros;
-    
+
     const where = {};
     if (status) where.status = status;
     if (alunoId) where.alunoId = alunoId;
-    
+
     if (dataInicio || dataFim) {
       where.dataVencimento = {};
       if (dataInicio) where.dataVencimento.gte = new Date(dataInicio);
@@ -24,6 +25,20 @@ class ContaReceberRepository {
         where,
         skip: Number(skip),
         take: Number(take),
+        include: {
+          aluno: {
+            include: {
+              pessoa: {
+                select: {
+                  id: true,
+                  nome1: true,
+                  doc1: true,
+                  codigo: true
+                }
+              }
+            }
+          }
+        },
         orderBy: { dataVencimento: 'desc' }
       })
     ]);
@@ -32,24 +47,50 @@ class ContaReceberRepository {
   }
 
   async buscarPorId(id) {
-    return await prisma.contaReceber.findUnique({ where: { id } });
+    return await prisma.contaReceber.findUnique({
+      where: { id },
+      include: {
+        aluno: {
+          include: {
+            pessoa: {
+              select: {
+                id: true,
+                nome1: true,
+                doc1: true,
+                codigo: true
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   async buscarPorNumero(numero) {
     return await prisma.contaReceber.findUnique({ where: { numero } });
   }
 
-  async atualizar(id, data) {
-  // Converter dataVencimento para Date se existir
-  if (data.dataVencimento && typeof data.dataVencimento === 'string') {
-    data.dataVencimento = new Date(data.dataVencimento);
+  async buscarPorMatriculaId(alunoId) {
+    const contasReceber = await prisma.contaReceber.findMany({
+      where: {
+        alunoId: alunoId
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return contasReceber;
   }
-  
-  return await prisma.contaReceber.update({
-    where: { id },
-    data
-  });
-}
+
+  async atualizar(id, data) {
+    // Converter dataVencimento para Date se existir
+    if (data.dataVencimento && typeof data.dataVencimento === 'string') {
+      data.dataVencimento = new Date(data.dataVencimento);
+    }
+
+    return await prisma.contaReceber.update({
+      where: { id },
+      data
+    });
+  }
 
   async deletar(id) {
     return await prisma.contaReceber.delete({ where: { id } });

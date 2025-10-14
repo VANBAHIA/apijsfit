@@ -121,8 +121,9 @@ model Aluno {
   // Responsável
   responsavel Responsavel?
   matriculas  Matricula[]
+  contasReceber  ContaReceber[]
   // Lista de Horários
-
+  frequencias   Frequencia[]  
   horarios Horario[]
 
   // Controle de Acesso
@@ -133,6 +134,34 @@ model Aluno {
 
   @@index([pessoaId])
 }
+
+
+model Frequencia {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  alunoId       String   @db.ObjectId
+  data          DateTime
+  horarioInicio DateTime
+  horarioFim    DateTime?
+  presente      Boolean  @default(false)
+  observacao    String?
+  tipo          TipoFrequencia @default(MANUAL)
+  validadaPor   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  aluno         Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  @@index([alunoId, data])
+  @@index([data])
+  @@map("frequencias")
+}
+
+enum TipoFrequencia {
+  MANUAL
+  AUTOMATICA
+  IMPORTADA
+}
+
 
 model Local {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -176,6 +205,7 @@ model Plano {
   descricao        String?
 
   matriculas       Matricula[]
+  contasReceber  ContaReceber[]
   
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -209,23 +239,62 @@ model Desconto {
   @@map("descontos")
 }
 
+// Adicione este model ao seu schema.prisma
+
+model Visitante {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Dados cadastrais
+  nome              String
+  endereco          String?
+  bairro            String?
+  cidade            String?
+  uf                String?
+  cep               String?
+  telefone          String?
+  celular           String?
+  email             String?
+  sexo              String? // MASCULINO, FEMININO
+  dataNascimento    DateTime?
+  observacoes       String?
+
+  // Dados da visita
+  dataVisita              DateTime
+  
+  // ✅ Relacionamento com Funcionário
+  funcionarioId           String?      @db.ObjectId
+  funcionario             Funcionario? @relation(fields: [funcionarioId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([funcionarioId])
+  @@map("visitantes")
+}
+
+
+
+
 model Funcionario {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
   pessoaId String @unique @db.ObjectId
   pessoa   Pessoa @relation(fields: [pessoaId], references: [id])
 
   matricula    String    @unique
-  funcaoId     String    @db.ObjectId // ✅ NOVO: ID da função
-  funcao       Funcao    @relation(fields: [funcaoId], references: [id]) // ✅ NOVO: Relacionamento
+  funcaoId     String    @db.ObjectId
+  funcao       Funcao    @relation(fields: [funcaoId], references: [id])
   dataAdmissao DateTime
   dataDemissao DateTime?
   salario      Float?
   situacao     String    @default("ATIVO")
 
+
+  visitantes   Visitante[] // Relação reversa
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([funcaoId]) // ✅ NOVO: Índice para performance
+  @@index([funcaoId])
   @@map("funcionarios")
 }
 
@@ -300,11 +369,14 @@ model Matricula {
 
 model ContaReceber {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  numero            String   @unique  // Número sequencial da conta
+  numero            String   @unique
   
-  // Relacionamentos
   alunoId           String   @db.ObjectId
+  aluno             Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  
   planoId           String?  @db.ObjectId
+  plano             Plano?   @relation(fields: [planoId], references: [id], onDelete: SetNull)
+  
   descontoId        String?  @db.ObjectId
   
   // Valores
@@ -334,6 +406,10 @@ model ContaReceber {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   
+  @@index([alunoId])
+  @@index([planoId])
+  @@index([alunoId, planoId])
+  @@index([status])
   @@map("contas_receber")
 }
 

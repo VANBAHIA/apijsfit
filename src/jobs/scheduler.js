@@ -1,10 +1,14 @@
 const cron = require('node-cron');
 const gerarCobrancasJob = require('./gerarCobrancasRecorrentes');
+const frequenciaJob = require('./frequenciaJob');
+
 
 class JobScheduler {
   
   iniciar() {
     console.log('📅 [SCHEDULER] Iniciando agendamento de jobs...');
+    frequenciaJob.registrarFaltasAutomaticas();
+
 
     // Executar todo dia às 00:00 (meia-noite)
     cron.schedule('0 0 * * *', async () => {

@@ -119,12 +119,12 @@ model Aluno {
   empresa        String?
 
   // Responsável
-  responsavel Responsavel?
-  matriculas  Matricula[]
-  contasReceber  ContaReceber[]
+  responsavel   Responsavel?
+  matriculas    Matricula[]
+  contasReceber ContaReceber[]
   // Lista de Horários
-  frequencias   Frequencia[]  
-  horarios Horario[]
+  frequencias   Frequencia[]
+  horarios      Horario[]
 
   // Controle de Acesso
   controleAcesso ControleAcesso
@@ -135,21 +135,20 @@ model Aluno {
   @@index([pessoaId])
 }
 
-
 model Frequencia {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  alunoId       String   @db.ObjectId
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  alunoId       String         @db.ObjectId
   data          DateTime
   horarioInicio DateTime
   horarioFim    DateTime?
-  presente      Boolean  @default(false)
+  presente      Boolean        @default(false)
   observacao    String?
   tipo          TipoFrequencia @default(MANUAL)
   validadaPor   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  aluno         Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Cascade)
 
   @@index([alunoId, data])
   @@index([data])
@@ -161,7 +160,6 @@ enum TipoFrequencia {
   AUTOMATICA
   IMPORTADA
 }
-
 
 model Local {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -185,30 +183,30 @@ enum Periodicidade {
 }
 
 enum TipoCobranca {
-  RECORRENTE     // Gera cobrança todo mês/período
-  UNICA          // Gera apenas 1 cobrança
+  RECORRENTE // Gera cobrança todo mês/período
+  UNICA // Gera apenas 1 cobrança
 }
 
 model Plano {
-  id               String        @id @default(auto()) @map("_id") @db.ObjectId
-  codigo           String        @unique
-  nome             String
-  periodicidade    Periodicidade
-  numeroMeses      Int?
-  numeroDias       Int?
-  
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  codigo        String        @unique
+  nome          String
+  periodicidade Periodicidade
+  numeroMeses   Int?
+  numeroDias    Int?
+
   // ✅ NOVO CAMPO
-  tipoCobranca     TipoCobranca  @default(RECORRENTE)
-  
+  tipoCobranca TipoCobranca @default(RECORRENTE)
+
   valorMensalidade Float
-  status           String        @default("ATIVO")
+  status           String  @default("ATIVO")
   descricao        String?
 
-  matriculas       Matricula[]
-  contasReceber  ContaReceber[]
-  
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  matriculas    Matricula[]
+  contasReceber ContaReceber[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("planos")
 }
@@ -245,25 +243,25 @@ model Visitante {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   // Dados cadastrais
-  nome              String
-  endereco          String?
-  bairro            String?
-  cidade            String?
-  uf                String?
-  cep               String?
-  telefone          String?
-  celular           String?
-  email             String?
-  sexo              String? // MASCULINO, FEMININO
-  dataNascimento    DateTime?
-  observacoes       String?
+  nome           String
+  endereco       String?
+  bairro         String?
+  cidade         String?
+  uf             String?
+  cep            String?
+  telefone       String?
+  celular        String?
+  email          String?
+  sexo           String? // MASCULINO, FEMININO
+  dataNascimento DateTime?
+  observacoes    String?
 
   // Dados da visita
-  dataVisita              DateTime
-  
+  dataVisita DateTime
+
   // ✅ Relacionamento com Funcionário
-  funcionarioId           String?      @db.ObjectId
-  funcionario             Funcionario? @relation(fields: [funcionarioId], references: [id])
+  funcionarioId String?      @db.ObjectId
+  funcionario   Funcionario? @relation(fields: [funcionarioId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -271,9 +269,6 @@ model Visitante {
   @@index([funcionarioId])
   @@map("visitantes")
 }
-
-
-
 
 model Funcionario {
   id       String @id @default(auto()) @map("_id") @db.ObjectId
@@ -288,8 +283,7 @@ model Funcionario {
   salario      Float?
   situacao     String    @default("ATIVO")
 
-
-  visitantes   Visitante[] // Relação reversa
+  visitantes Visitante[] // Relação reversa
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -336,6 +330,9 @@ model Matricula {
   descontoId String?   @db.ObjectId // Opcional
   desconto   Desconto? @relation(fields: [descontoId], references: [id])
 
+  // 🆕 NOVO: Relacionamento com contas a receber
+  contasReceber ContaReceber[]
+
   // Datas
   dataInicio    DateTime
   dataFim       DateTime
@@ -350,12 +347,11 @@ model Matricula {
   situacao         String  @default("ATIVA") // ATIVA | INATIVA | SUSPENSA | CANCELADA
   motivoInativacao String? // Ex: "Inadimplência", "Pedido do aluno"
 
-  // Controle Financeiro (SUGESTÃO ADICIONAL)
-  formaPagamento String? // "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO"
-  parcelamento   Int?    @default(1) // Número de parcelas
+  // Controle Financeiro
+  formaPagamento       String? // "DINHEIRO" | "PIX" | "CARTAO" | "BOLETO"
+  parcelamento         Int?      @default(1) // Número de parcelas
   ultimaCobrancaGerada DateTime? // Data da última cobrança gerada
   proximaCobrancaData  DateTime? // Próxima data prevista
-
 
   // Observações
   observacoes String?
@@ -368,77 +364,83 @@ model Matricula {
 }
 
 model ContaReceber {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  numero            String   @unique
-  
-  alunoId           String   @db.ObjectId
-  aluno             Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
-  
-  planoId           String?  @db.ObjectId
-  plano             Plano?   @relation(fields: [planoId], references: [id], onDelete: SetNull)
-  
-  descontoId        String?  @db.ObjectId
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  numero String @unique
+
+  alunoId String @db.ObjectId
+  aluno   Aluno  @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+
+  planoId String? @db.ObjectId
+  plano   Plano?  @relation(fields: [planoId], references: [id], onDelete: SetNull)
+
+  descontoId String? @db.ObjectId
+
+  // 🆕 NOVO: Relacionamento com matrícula
+  matriculaId String?    @db.ObjectId
+  matricula   Matricula? @relation(fields: [matriculaId], references: [id], onDelete: SetNull)
+
   // Valores
-  valorOriginal     Float
-  valorDesconto     Float    @default(0)
-  valorFinal        Float
-  valorPago         Float    @default(0)
-  valorRestante     Float
-  
+  valorOriginal Float
+  valorDesconto Float @default(0)
+  valorFinal    Float
+  valorPago     Float @default(0)
+  valorRestante Float
+
   // Datas
-  dataEmissao       DateTime @default(now())
-  dataVencimento    DateTime
-  dataPagamento     DateTime?
-  
+  dataEmissao    DateTime  @default(now())
+  dataVencimento DateTime
+  dataPagamento  DateTime?
+
   // Status
-  status            String   @default("PENDENTE") // PENDENTE, PAGO, VENCIDO, CANCELADO
-  
+  status String @default("PENDENTE") // PENDENTE, PAGO, VENCIDO, CANCELADO
+
   // Informações adicionais
-  observacoes       String?
-  formaPagamento    String?  // DINHEIRO, CARTAO_CREDITO, CARTAO_DEBITO, PIX, BOLETO
-  
-  // ✅ NOVOS CAMPOS: Controle de parcelas
-  numeroParcela     Int?
-  totalParcelas     Int?
-  
+  observacoes    String?
+  formaPagamento String? // DINHEIRO, CARTAO_CREDITO, CARTAO_DEBITO, PIX, BOLETO
+
+  // Controle de parcelas
+  numeroParcela Int?
+  totalParcelas Int?
+
   // Auditoria
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([alunoId])
   @@index([planoId])
+  @@index([matriculaId]) // 🆕 NOVO: Índice para matriculaId
   @@index([alunoId, planoId])
+  @@index([alunoId, planoId, matriculaId]) // 🆕 NOVO: Índice composto
   @@index([status])
   @@map("contas_receber")
 }
 
 model Caixa {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  numero            String   @unique
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  numero String @unique
+
   // Dados de abertura
-  dataAbertura      DateTime
-  horaAbertura      String
-  valorAbertura     Float
-  usuarioAbertura   String
-  
+  dataAbertura    DateTime
+  horaAbertura    String
+  valorAbertura   Float
+  usuarioAbertura String
+
   // Dados de fechamento
   dataFechamento    DateTime?
   horaFechamento    String?
   valorFechamento   Float?
   usuarioFechamento String?
-  
+
   // Valores
-  totalEntradas     Float    @default(0)
-  totalSaidas       Float    @default(0)
-  saldoFinal        Float?
-  
+  totalEntradas Float  @default(0)
+  totalSaidas   Float  @default(0)
+  saldoFinal    Float?
+
   // Status
-  status            String   @default("ABERTO") // ABERTO, FECHADO
-  
+  status String @default("ABERTO") // ABERTO, FECHADO
+
   // Movimentos (JSON) - Estrutura atualizada
-  movimentos        Json[]   @default([])
+  movimentos Json[] @default([])
   // Estrutura de cada movimento:
   // {
   //   id: string,
@@ -451,143 +453,143 @@ model Caixa {
   //   categoria?: string,        // Categoria da despesa/receita
   //   dataHora: string
   // }
-  
-  // Observações
-  observacoes       String?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
 
+  // Observações
+  observacoes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
 model ContaPagar {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  numero            String   @unique  // Número sequencial da conta
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  numero String @unique // Número sequencial da conta
+
   // Relacionamentos
-  fornecedorId      String?  @db.ObjectId  // Pode ser um fornecedor cadastrado
-  funcionarioId     String?  @db.ObjectId  // Ou um funcionário (salários)
-  
+  fornecedorId  String? @db.ObjectId // Pode ser um fornecedor cadastrado
+  funcionarioId String? @db.ObjectId // Ou um funcionário (salários)
+
   // Dados do fornecedor (se não cadastrado)
-  fornecedorNome    String?
-  fornecedorDoc     String?
-  
+  fornecedorNome String?
+  fornecedorDoc  String?
+
   // Categoria/Tipo
-  categoria         String   // FORNECEDOR, SALARIO, ALUGUEL, ENERGIA, AGUA, TELEFONE, INTERNET, EQUIPAMENTO, MANUTENCAO, OUTROS
-  
+  categoria String // FORNECEDOR, SALARIO, ALUGUEL, ENERGIA, AGUA, TELEFONE, INTERNET, EQUIPAMENTO, MANUTENCAO, OUTROS
+
   // Valores
-  valorOriginal     Float
-  valorDesconto     Float    @default(0)
-  valorJuros        Float    @default(0)
-  valorMulta        Float    @default(0)
-  valorFinal        Float
-  valorPago         Float    @default(0)
-  valorRestante     Float
-  
+  valorOriginal Float
+  valorDesconto Float @default(0)
+  valorJuros    Float @default(0)
+  valorMulta    Float @default(0)
+  valorFinal    Float
+  valorPago     Float @default(0)
+  valorRestante Float
+
   // Datas
-  dataEmissao       DateTime @default(now())
-  dataVencimento    DateTime
-  dataPagamento     DateTime?
-  
+  dataEmissao    DateTime  @default(now())
+  dataVencimento DateTime
+  dataPagamento  DateTime?
+
   // Status
-  status            String   @default("PENDENTE") // PENDENTE, PAGO, VENCIDO, CANCELADO
-  
+  status String @default("PENDENTE") // PENDENTE, PAGO, VENCIDO, CANCELADO
+
   // Informações adicionais
-  descricao         String
-  observacoes       String?
-  formaPagamento    String?  // DINHEIRO, TRANSFERENCIA, BOLETO, CHEQUE, CARTAO
-  documento         String?  // Número da nota fiscal, recibo, etc
-  
+  descricao      String
+  observacoes    String?
+  formaPagamento String? // DINHEIRO, TRANSFERENCIA, BOLETO, CHEQUE, CARTAO
+  documento      String? // Número da nota fiscal, recibo, etc
+
   // Controle de parcelas
-  numeroParcela     Int?
-  totalParcelas     Int?
-  
+  numeroParcela Int?
+  totalParcelas Int?
+
   // Anexos (URLs ou base64)
-  anexos            Json[]   @default([])
-  
+  anexos Json[] @default([])
+
   // Auditoria
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
 // Adicione ao seu schema.prisma
 
 model Empresa {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  codigo      String   @unique
-  razaoSocial String
-  nomeFantasia String?
-  cnpj        String   @unique
-  inscricaoEstadual String?
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  codigo             String  @unique
+  razaoSocial        String
+  nomeFantasia       String?
+  cnpj               String  @unique
+  inscricaoEstadual  String?
   inscricaoMunicipal String?
-  
-  endereco    Json?    // { logradouro, numero, complemento, bairro, cidade, estado, cep }
-  contatos    Json?    // [{ tipo: 'EMAIL' | 'TELEFONE' | 'CELULAR', valor, principal }]
-  
+
+  endereco Json? // { logradouro, numero, complemento, bairro, cidade, estado, cep }
+  contatos Json? // [{ tipo: 'EMAIL' | 'TELEFONE' | 'CELULAR', valor, principal }]
+
   responsavel String?
   email       String?
   site        String?
-  
-  situacao    String   @default("ATIVO") // ATIVO, INATIVO, BLOQUEADO
-  
+
+  situacao String @default("ATIVO") // ATIVO, INATIVO, BLOQUEADO
+
   // Relacionamentos
-  licencas    Licenca[]
-  usuarios    Usuario[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  licencas Licenca[]
+  usuarios Usuario[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("empresas")
 }
 
 model Licenca {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  empresaId       String   @db.ObjectId
-  empresa         Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  
-  chave           String   @unique // Chave de ativação UUID
-  tipo            String   // TRIAL, MENSAL, ANUAL, VITALICIA
-  
-  dataInicio      DateTime
-  dataExpiracao   DateTime
-  
-  maxUsuarios     Int      @default(5)
-  maxAlunos       Int      @default(100)
-  
-  funcionalidades Json     // Array de módulos liberados: ['ALUNOS', 'FINANCEIRO', 'TREINOS']
-  
-  situacao        String   @default("ATIVA") // ATIVA, EXPIRADA, CANCELADA, SUSPENSA
-  
-  observacoes     String?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  empresaId String  @db.ObjectId
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  chave String @unique // Chave de ativação UUID
+  tipo  String // TRIAL, MENSAL, ANUAL, VITALICIA
+
+  dataInicio    DateTime
+  dataExpiracao DateTime
+
+  maxUsuarios Int @default(5)
+  maxAlunos   Int @default(100)
+
+  funcionalidades Json // Array de módulos liberados: ['ALUNOS', 'FINANCEIRO', 'TREINOS']
+
+  situacao String @default("ATIVA") // ATIVA, EXPIRADA, CANCELADA, SUSPENSA
+
+  observacoes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("licencas")
 }
 
 model Usuario {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  empresaId   String   @db.ObjectId
-  empresa     Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  
-  nomeUsuario String   @unique // Username para login
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  empresaId String  @db.ObjectId
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  nomeUsuario String @unique // Username para login
   nome        String
-  email       String   @unique
-  senha       String   // Hash bcrypt
-  
-  perfil      String   @default("USUARIO") // ADMIN, GERENTE, USUARIO, INSTRUTOR
-  
-  permissoes  Json     // Array de permissões específicas
-  
-  foto        String?
-  telefone    String?
-  
-  situacao    String   @default("ATIVO") // ATIVO, INATIVO, BLOQUEADO
-  
+  email       String @unique
+  senha       String // Hash bcrypt
+
+  perfil String @default("USUARIO") // ADMIN, GERENTE, USUARIO, INSTRUTOR
+
+  permissoes Json @default("{\"modulos\":{},\"acoes_especiais\":[]}")
+
+  foto     String?
+  telefone String?
+
+  situacao String @default("ATIVO") // ATIVO, INATIVO, BLOQUEADO
+
   ultimoAcesso DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("usuarios")
 }

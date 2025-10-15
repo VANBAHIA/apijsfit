@@ -23,10 +23,11 @@ class ContaReceberService {
   }
 
   /**
-   * ✅ ATUALIZADO: Criar conta a receber com suporte a parcelas
+   * ✅ ATUALIZADO: Criar conta a receber com suporte a matrícula e parcelas
    */
   async criar(data) {
     const { 
+      matriculaId,  // 🆕 NOVO
       alunoId, 
       planoId, 
       descontoId, 
@@ -60,6 +61,7 @@ class ContaReceberService {
 
     return await contaReceberRepository.criar({
       numero,
+      matriculaId: matriculaId || null,  // 🆕 NOVO
       alunoId,
       planoId,
       descontoId,
@@ -154,6 +156,18 @@ class ContaReceberService {
       status: 'CANCELADO',
       observacoes: `${conta.observacoes || ''}\nCANCELADO: ${motivo}`
     });
+  }
+
+  // 🆕 NOVO: Atualizar conta (antes do pagamento)
+  async atualizar(id, data) {
+    const conta = await contaReceberRepository.buscarPorId(id);
+    if (!conta) throw new ApiError(404, 'Conta não encontrada');
+    
+    if (conta.status === 'PAGO') {
+      throw new ApiError(400, 'Não é possível atualizar conta já paga');
+    }
+
+    return await contaReceberRepository.atualizar(id, data);
   }
 }
 

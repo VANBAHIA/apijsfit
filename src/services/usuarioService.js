@@ -1,9 +1,10 @@
-const usuarioRepository = require('../repositories/usuarioRepository');
+const usuarioRepository = require('../repositories/UsuarioRepository');
 const empresaRepository = require('../repositories/empresaRepository');
 const licencaRepository = require('../repositories/licencaRepository');
 const ApiError = require('../utils/apiError');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { aplicarTemplatePerfil } = require('../config/permissoesPadrao');
 
 class UsuarioService {
   async criar(data) {
@@ -51,7 +52,11 @@ class UsuarioService {
 
     // Valores padrão
     data.perfil = data.perfil || 'USUARIO';
-    data.permissoes = data.permissoes || [];
+    
+    // ✅ Aplicar template de permissões
+    if (!data.permissoes || Object.keys(data.permissoes).length === 0) {
+      data.permissoes = aplicarTemplatePerfil(data.perfil);
+    }
 
     return await usuarioRepository.criar(data);
   }
@@ -172,6 +177,11 @@ class UsuarioService {
       if (emailExistente) {
         throw new ApiError(400, 'Email já cadastrado');
       }
+    }
+
+    // ✅ Se mudou perfil, atualizar permissões
+    if (data.perfil && data.perfil !== usuario.perfil) {
+      data.permissoes = aplicarTemplatePerfil(data.perfil);
     }
 
     // Hash da senha se estiver sendo alterada

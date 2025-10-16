@@ -1,11 +1,3 @@
-// src/config/permissoesPadrao.js
-
-/**
- * Templates de Permissões por Perfil
- * Sistema JSFitGestão - Completo
- * 
- * Baseado na estrutura de menus do menuConfig.js
- */
 
 export const MODULOS_SISTEMA = {
   // ========== CONTROLE ==========
@@ -95,11 +87,7 @@ export const ACOES_ESPECIAIS = {
  * Templates de Permissões por Perfil
  */
 export const TEMPLATES_PERFIS = {
-  
-  // ========================================
-  // 👑 ADMINISTRADOR - ACESSO TOTAL
-  // ========================================
-  ADMIN: {
+  SUPER_ADMIN: {
     modulos: {
       // === CONTROLE ===
       alunos: {
@@ -115,11 +103,16 @@ export const TEMPLATES_PERFIS = {
         criar: true,
         editar: true,
         excluir: true,
+        demitir: true, 
+        reativar: true,
         exportar: true,
         visualizarSalarios: true
       },
       matriculas: {
-        acessar: true,
+        acessar: true, 
+        inativar: true,
+reativar: true,
+        gerarCobr: false,
         criar: true,
         editar: true,
         excluir: true,
@@ -303,6 +296,217 @@ export const TEMPLATES_PERFIS = {
   },
 
   // ========================================
+  // 👑 ADMINISTRADOR - ACESSO TOTAL
+  // ========================================
+  ADMIN: {
+    modulos: {
+      // === CONTROLE ===
+      alunos: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        exportar: true,
+        imprimir: true
+      },
+      funcionarios: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        demitir: true, 
+        reativar: true,
+        exportar: true,
+        visualizarSalarios: true
+      },
+      matriculas: {
+        acessar: true, 
+        inativar: true,
+reativar: true,
+        gerarCobr: false,
+        criar: true,
+        editar: true,
+        excluir: true,
+        cancelar: true,
+        aplicarDesconto: true,
+        editarValor: true,
+        exportar: true
+      },
+      turmas: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        gerenciarHorarios: true,
+        gerenciarInstrutores: true
+      },
+      frequencia: {
+        acessar: true,
+        registrar: true,
+        editar: true,
+        excluir: true,
+        validar: true,
+        exportar: true
+      },
+      visitantes: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        exportar: true
+      },
+      instrutores: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        gerenciarAgenda: true
+      },
+      
+      // === CADASTROS AUXILIARES ===
+      locais: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      funcoes: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      planos: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        editarPrecos: true
+      },
+      descontos: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      modalidades: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      equipamentos: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        gerenciarManutencao: true
+      },
+      
+      // === FINANCEIRO ===
+      mensalidades: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        receber: true,
+        estornar: true,
+        exportar: true
+      },
+      contasPagar: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        pagar: true,
+        exportar: true
+      },
+      contasReceber: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        receber: true,
+        exportar: true
+      },
+      caixa: {
+        acessar: true,
+        abrir: true,
+        fechar: true,
+        reabrir: true,
+        editarMovimento: true,
+        excluirMovimento: true,
+        exportar: true
+      },
+      
+      // === RELATÓRIOS ===
+      relatorioFrequencia: {
+        acessar: true,
+        gerar: true,
+        exportar: true,
+        imprimir: true
+      },
+      relatorioFinanceiro: {
+        acessar: true,
+        gerar: true,
+        exportar: true,
+        imprimir: true,
+        dashboardGerencial: true
+      },
+      
+      // === CONFIGURAÇÕES ===
+      dadosAcademia: {
+        acessar: true,
+        editar: true
+      },
+      usuarios: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true,
+        gerenciarPermissoes: true,
+        alterarSenhas: true
+      },
+      licencas: {
+        acessar: false,
+        criar: true,
+        editar: true,
+        ativar: true,
+        desativar: true
+      },
+      sistema: {
+        acessar: true,
+        configurar: true,
+        acessarLogs: true,
+        backupRestaurar: true
+      }
+    },
+    acoes_especiais: [
+      'APLICAR_DESCONTO_ILIMITADO',
+      'CANCELAR_QUALQUER_MATRICULA',
+      'ESTORNAR_PAGAMENTO',
+      'EDITAR_VALOR_MATRICULA',
+      'FECHAR_CAIXA',
+      'REABRIR_CAIXA',
+      'EDITAR_MOVIMENTO_CAIXA',
+      'EXCLUIR_MOVIMENTO_CAIXA',
+      'VISUALIZAR_SALARIOS',
+      'EDITAR_SALARIOS',
+      'PROCESSAR_FOLHA',
+      'GERAR_RELATORIOS_AVANCADOS',
+      'EXPORTAR_DADOS_COMPLETOS',
+      'ACESSAR_DASHBOARD_GERENCIAL',
+      'EDITAR_EMPRESA',
+      'GERENCIAR_USUARIOS',
+      'GERENCIAR_LICENCAS',
+      'ACESSAR_LOGS_SISTEMA',
+      'CONFIGURAR_SISTEMA',
+      'ALTERAR_DATA_RETROATIVA',
+      'EDITAR_DADOS_SENSÍVEIS'
+    ]
+  },
+
+  // ========================================
   // 👔 GERENTE - GESTÃO OPERACIONAL
   // ========================================
   GERENTE: {
@@ -321,11 +525,16 @@ export const TEMPLATES_PERFIS = {
         criar: false,
         editar: true,
         excluir: false,
+        demitir: true, 
+        reativar: true,
         exportar: false,
         visualizarSalarios: false
       },
       matriculas: {
-        acessar: true,
+        acessar: true, 
+        inativar: true,
+reativar: true,
+        gerarCobr: false,
         criar: true,
         editar: true,
         excluir: false,
@@ -511,11 +720,16 @@ export const TEMPLATES_PERFIS = {
         criar: false,
         editar: false,
         excluir: false,
+        demitir: false, 
+        reativar: false,
         exportar: false,
         visualizarSalarios: false
       },
       matriculas: {
-        acessar: true,
+        acessar: true, 
+        inativar: true,
+reativar: true,
+        gerarCobr: false,
         criar: false,
         editar: false,
         excluir: false,
@@ -588,7 +802,7 @@ export const TEMPLATES_PERFIS = {
         excluir: false
       },
       equipamentos: {
-        acessar: true,
+        acessar: false,
         criar: false,
         editar: false,
         excluir: false,
@@ -695,11 +909,16 @@ export const TEMPLATES_PERFIS = {
         criar: false,
         editar: false,
         excluir: false,
+        demitir: false, 
+        reativar: false,
         exportar: false,
         visualizarSalarios: false
       },
       matriculas: {
-        acessar: true,
+        acessar: true, 
+        inativar: true,
+reativar: true,
+        gerarCobr: false,
         criar: false,
         editar: false,
         excluir: false,
@@ -772,7 +991,7 @@ export const TEMPLATES_PERFIS = {
         excluir: false
       },
       equipamentos: {
-        acessar: true,
+        acessar: false,
         criar: false,
         editar: false,
         excluir: false,

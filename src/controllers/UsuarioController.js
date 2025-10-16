@@ -1,7 +1,11 @@
-const usuarioService = require('../services/usuarioService');
+
 const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
+
+const usuarioService = require('../services/usuarioService');
+
+
 
 class UsuarioController {
   criar = asyncHandler(async (req, res) => {

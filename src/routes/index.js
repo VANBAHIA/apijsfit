@@ -21,6 +21,8 @@ const usuarioRoutes = require('./usuarioRoutes');
 const jobRoutes = require('./jobRoutes');
 const visitanteRoutes = require('./visitanteRoutes');
 const frequenciaRoutes = require('./frequenciaRoutes');
+const relatorioFinanceiroRoutes = require('./relatorioFinanceiroRoutes');
+
 
 
 
@@ -46,6 +48,9 @@ router.use('/usuarios', usuarioRoutes);
 router.use('/jobs', jobRoutes);
 router.use('/visitantes', visitanteRoutes);
 router.use('/frequencias', frequenciaRoutes);
+router.use('/relatorios/financeiro', relatorioFinanceiroRoutes);
+
+
 
 
 
@@ -77,7 +82,8 @@ router.get('/health', (req, res) => {
       usuarios: '/api/usuarios',
       jobs: '/api/jobs',
       visitantes: '/api/visitantes',
-      frequencias: 'api/frequencias'
+      frequencias: 'api/frequencias',
+      relatorioFinanceiroRoutes: 'api/relatorioFinanceiroRoutes'
     }
   });
 });
@@ -107,7 +113,9 @@ router.get('/', (req, res) => {
       { path: '/api/usuarios', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/jobs', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/visitantes', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-       { path: '/api/frequencias', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+       { path: '/api/frequencias', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+       { path: '/api/relatorioFinanceiroRoutes', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+       
 
     ]
   });

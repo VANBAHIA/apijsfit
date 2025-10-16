@@ -1,6 +1,6 @@
 // scripts/atualizarPermissoes.js
 const { PrismaClient } = require('@prisma/client');
-const { aplicarTemplatePerfil } = require('../src/config/permissoesPadrao');
+const { aplicarTemplatePerfil } = require('../config/permissoesPadrao');
 
 const prisma = new PrismaClient();
 

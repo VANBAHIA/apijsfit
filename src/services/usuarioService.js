@@ -8,6 +8,15 @@ const { aplicarTemplatePerfil } = require('../config/permissoesPadrao');
 
 class UsuarioService {
   async criar(data) {
+    // Validações básicas
+    if (!data.nomeUsuario || !data.senha || !data.nome || !data.email) {
+      throw new ApiError(400, 'Nome de usuário, senha, nome e email são obrigatórios');
+    }
+
+    if (!data.empresaId) {
+      throw new ApiError(400, 'Empresa ID é obrigatório');
+    }
+
     // Validar empresa
     const empresa = await empresaRepository.buscarPorId(data.empresaId);
     if (!empresa) {
@@ -42,18 +51,14 @@ class UsuarioService {
       throw new ApiError(400, 'Email já cadastrado');
     }
 
-    // Validações básicas
-    if (!data.nomeUsuario || !data.senha || !data.nome || !data.email) {
-      throw new ApiError(400, 'Nome de usuário, senha, nome e email são obrigatórios');
-    }
-
     // Hash da senha
     data.senha = await bcrypt.hash(data.senha, 10);
 
     // Valores padrão
     data.perfil = data.perfil || 'USUARIO';
-    
-    // ✅ Aplicar template de permissões
+    data.situacao = data.situacao || 'ATIVO';
+
+    // Aplicar template de permissões
     if (!data.permissoes || Object.keys(data.permissoes).length === 0) {
       data.permissoes = aplicarTemplatePerfil(data.perfil);
     }
@@ -179,7 +184,7 @@ class UsuarioService {
       }
     }
 
-    // ✅ Se mudou perfil, atualizar permissões
+    // Se mudou perfil, atualizar permissões
     if (data.perfil && data.perfil !== usuario.perfil) {
       data.permissoes = aplicarTemplatePerfil(data.perfil);
     }
@@ -193,16 +198,23 @@ class UsuarioService {
   }
 
   async alterarSenha(id, senhaAtual, novaSenha) {
-    const usuario = await usuarioRepository.buscarPorNomeUsuario(
-      (await usuarioRepository.buscarPorId(id)).nomeUsuario
-    );
+    const usuario = await usuarioRepository.buscarPorId(id);
 
     if (!usuario) {
       throw new ApiError(404, 'Usuário não encontrado');
     }
 
+    // Obter usuário com senha hash
+    const usuarioComSenha = await require('../config/database').usuario.findUnique({
+      where: { id }
+    });
+
+    if (!usuarioComSenha) {
+      throw new ApiError(404, 'Usuário não encontrado');
+    }
+
     // Verificar senha atual
-    const senhaValida = await bcrypt.compare(senhaAtual, usuario.senha);
+    const senhaValida = await bcrypt.compare(senhaAtual, usuarioComSenha.senha);
 
     if (!senhaValida) {
       throw new ApiError(401, 'Senha atual incorreta');

@@ -48,6 +48,9 @@ class EmpresaService {
       throw new ApiError(400, 'CNPJ é obrigatório');
     }
 
+    // Definir situação padrão
+    data.situacao = data.situacao || 'ATIVO';
+
     return await empresaRepository.criar(data);
   }
 
@@ -99,7 +102,11 @@ class EmpresaService {
     }
 
     // Verificar se tem usuários ativos
-    if (empresa.usuarios && empresa.usuarios.length > 0) {
+    const usuarios = await prisma.usuario.count({
+      where: { empresaId: id }
+    });
+
+    if (usuarios > 0) {
       throw new ApiError(400, 'Não é possível deletar empresa com usuários cadastrados');
     }
 

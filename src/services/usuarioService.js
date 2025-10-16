@@ -66,11 +66,21 @@ class UsuarioService {
     return await usuarioRepository.criar(data);
   }
 
-  async login(nomeUsuario, senha) {
-    // Buscar usuário
+  async login(nomeUsuario, senha, empresaId) {
+    // ✅ VALIDAR EMPRESA FORNECIDA
+    if (!empresaId) {
+      throw new ApiError(400, 'Empresa não selecionada');
+    }
+
+    // Buscar usuário com filtro de empresa
     const usuario = await usuarioRepository.buscarPorNomeUsuario(nomeUsuario);
 
     if (!usuario) {
+      throw new ApiError(401, 'Credenciais inválidas');
+    }
+
+    // ✅ VALIDAR SE USUÁRIO PERTENCE À EMPRESA SELECIONADA
+    if (usuario.empresaId !== empresaId) {
       throw new ApiError(401, 'Credenciais inválidas');
     }
 
@@ -90,7 +100,7 @@ class UsuarioService {
     }
 
     const licenca = usuario.empresa.licencas[0];
-    
+
     if (licenca.situacao !== 'ATIVA') {
       throw new ApiError(401, `Licença ${licenca.situacao.toLowerCase()}`);
     }
@@ -251,7 +261,7 @@ class UsuarioService {
 
   async alterarSituacao(id, situacao) {
     const situacoesValidas = ['ATIVO', 'INATIVO', 'BLOQUEADO'];
-    
+
     if (!situacoesValidas.includes(situacao)) {
       throw new ApiError(400, 'Situação inválida');
     }

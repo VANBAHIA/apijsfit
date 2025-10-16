@@ -22,13 +22,17 @@ class UsuarioController {
   });
 
   login = asyncHandler(async (req, res) => {
-    const { nomeUsuario, senha } = req.body;
+    const { nomeUsuario, senha, empresaId } = req.body; // ✅ Adicionar empresaId
 
     if (!nomeUsuario || !senha) {
       throw new ApiError(400, 'Nome de usuário e senha são obrigatórios');
     }
 
-    const resultado = await usuarioService.login(nomeUsuario, senha);
+    if (!empresaId) {
+      throw new ApiError(400, 'Empresa não selecionada');
+    }
+
+    const resultado = await usuarioService.login(nomeUsuario, senha, empresaId); // ✅ Passar empresaId
 
     res.status(200).json(
       new ApiResponse(200, resultado, 'Login realizado com sucesso')

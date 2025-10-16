@@ -3,6 +3,15 @@ const router = express.Router();
 const empresaController = require('../controllers/empresaController');
 
 /**
+ * ⭐ ROTA PÚBLICA - Buscar empresa por CNPJ (para login)
+ * @route   POST /api/empresas/buscar-cnpj
+ * @desc    Busca empresa por CNPJ (público)
+ * @access  Public
+ */
+router.post('/buscar-cnpj', empresaController.buscarPorCNPJ);
+
+
+/**
  * @route   POST /api/empresas
  * @desc    Criar nova empresa
  * @access  Public

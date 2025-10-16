@@ -73,6 +73,25 @@ class EmpresaController {
       new ApiResponse(200, empresa, 'Situação alterada com sucesso')
     );
   });
+  /**
+ * Busca empresa por CNPJ (endpoint público para login)
+ */
+  /**
+ * Busca empresa por CNPJ (endpoint público para login)
+ */
+buscarPorCNPJ = asyncHandler(async (req, res) => {
+  const { cnpj } = req.body;
+
+  if (!cnpj) {
+    throw new ApiError(400, 'CNPJ é obrigatório');
+  }
+
+  const empresa = await empresaService.buscarPorCNPJPublico(cnpj);
+
+  res.status(200).json(
+    new ApiResponse(200, empresa, 'Empresa encontrada')
+  );
+});
 }
 
 module.exports = new EmpresaController();

@@ -119,12 +119,49 @@ class EmpresaService {
 
   async alterarSituacao(id, situacao) {
     const situacoesValidas = ['ATIVO', 'INATIVO', 'BLOQUEADO'];
-    
+
     if (!situacoesValidas.includes(situacao)) {
       throw new ApiError(400, 'Situação inválida');
     }
 
     return await empresaRepository.atualizar(id, { situacao });
+  }
+  /**
+ * Busca empresa por CNPJ (método público para tela de login)
+ * Retorna apenas dados básicos para seleção
+ */
+  async buscarPorCNPJPublico(cnpj) {
+    // Limpar formatação do CNPJ
+    const cnpjLimpo = cnpj.replace(/\D/g, '');
+
+    if (cnpjLimpo.length !== 14) {
+      throw new ApiError(400, 'CNPJ inválido');
+    }
+
+    const empresa = await empresaRepository.buscarPorCnpj(cnpjLimpo);
+
+    if (!empresa) {
+      throw new ApiError(404, 'Empresa não encontrada');
+    }
+
+    // Verificar se empresa está ativa
+    if (empresa.situacao !== 'ATIVO') {
+      throw new ApiError(400, 'Empresa não está ativa');
+    }
+
+    // Verificar se tem licença ativa
+    const licenca = await licencaRepository.buscarLicencaAtiva(empresa.id);
+    if (!licenca) {
+      throw new ApiError(400, 'Empresa sem licença ativa');
+    }
+
+    // Retornar apenas dados básicos (segurança)
+    return {
+      id: empresa.id,
+      razaoSocial: empresa.razaoSocial,
+      nomeFantasia: empresa.nomeFantasia,
+      cnpj: empresa.cnpj
+    };
   }
 }
 

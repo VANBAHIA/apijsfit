@@ -1,6 +1,9 @@
 const prisma = require('../config/database');
 
 class EmpresaRepository {
+
+
+
   async criar(data) {
     return await prisma.empresa.create({
       data,
@@ -63,6 +66,7 @@ class EmpresaRepository {
         usuarios: {
           select: {
             id: true,
+            cnpj: true,
             nomeUsuario: true,
             nome: true,
             email: true,
@@ -82,11 +86,13 @@ class EmpresaRepository {
     });
   }
 
-  async buscarPorCnpj(cnpj) {
+    async buscarPorCnpj(cnpj) {
     return await prisma.empresa.findUnique({
       where: { cnpj }
     });
   }
+
+ 
 
   async atualizar(id, data) {
     return await prisma.empresa.update({

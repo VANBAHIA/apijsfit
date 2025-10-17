@@ -3,6 +3,39 @@ const ApiError = require('../utils/apiError');
 const prisma = require('../config/database');
 
 class EmpresaService {
+
+  async buscarPorCNPJ(cnpj) {
+    // Limpar formatação do CNPJ
+    const cnpjLimpo = cnpj.replace(/\D/g, '');
+
+    if (cnpjLimpo.length !== 14) {
+      throw new ApiError(400, 'CNPJ inválido');
+    }
+
+    // ✅ Formatar para o padrão do banco: XX.XXX.XXX/XXXX-XX
+    const cnpjFormatado = cnpjLimpo.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      '$1.$2.$3/$4-$5'
+    );
+
+    const empresa = await empresaRepository.buscarPorCnpj(cnpjFormatado);
+
+    if (!empresa) {
+      throw new ApiError(404, 'Empresa não encontrada');
+    }
+
+    if (empresa.situacao !== 'ATIVO') {
+      throw new ApiError(400, 'Empresa não está ativa');
+    }
+
+    return {
+      id: empresa.id,
+      razaoSocial: empresa.razaoSocial,
+      nomeFantasia: empresa.nomeFantasia,
+      cnpj: empresa.cnpj
+    };
+  }
+
   async gerarProximoCodigo() {
     const ultimaEmpresa = await prisma.empresa.findFirst({
       orderBy: { codigo: 'desc' },
@@ -47,9 +80,6 @@ class EmpresaService {
     if (!data.cnpj) {
       throw new ApiError(400, 'CNPJ é obrigatório');
     }
-
-    // Definir situação padrão
-    data.situacao = data.situacao || 'ATIVO';
 
     return await empresaRepository.criar(data);
   }
@@ -102,11 +132,7 @@ class EmpresaService {
     }
 
     // Verificar se tem usuários ativos
-    const usuarios = await prisma.usuario.count({
-      where: { empresaId: id }
-    });
-
-    if (usuarios > 0) {
+    if (empresa.usuarios && empresa.usuarios.length > 0) {
       throw new ApiError(400, 'Não é possível deletar empresa com usuários cadastrados');
     }
 
@@ -126,43 +152,8 @@ class EmpresaService {
 
     return await empresaRepository.atualizar(id, { situacao });
   }
-  /**
- * Busca empresa por CNPJ (método público para tela de login)
- * Retorna apenas dados básicos para seleção
- */
-  async buscarPorCNPJPublico(cnpj) {
-    // Limpar formatação do CNPJ
-    const cnpjLimpo = cnpj.replace(/\D/g, '');
 
-    if (cnpjLimpo.length !== 14) {
-      throw new ApiError(400, 'CNPJ inválido');
-    }
 
-    const empresa = await empresaRepository.buscarPorCnpj(cnpjLimpo);
-
-    if (!empresa) {
-      throw new ApiError(404, 'Empresa não encontrada');
-    }
-
-    // Verificar se empresa está ativa
-    if (empresa.situacao !== 'ATIVO') {
-      throw new ApiError(400, 'Empresa não está ativa');
-    }
-
-    // Verificar se tem licença ativa
-    const licenca = await licencaRepository.buscarLicencaAtiva(empresa.id);
-    if (!licenca) {
-      throw new ApiError(400, 'Empresa sem licença ativa');
-    }
-
-    // Retornar apenas dados básicos (segurança)
-    return {
-      id: empresa.id,
-      razaoSocial: empresa.razaoSocial,
-      nomeFantasia: empresa.nomeFantasia,
-      cnpj: empresa.cnpj
-    };
-  }
 }
 
 module.exports = new EmpresaService();

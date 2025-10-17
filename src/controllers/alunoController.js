@@ -1,123 +1,119 @@
 const alunoService = require('../services/alunoService');
-const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
 
-class AlunoController {
-  /**
-   * Cria um novo aluno com sua pessoa em transação atômica
-   * @route POST /api/alunos
-   */
-  criarComPessoa = asyncHandler(async (req, res) => {
-    const dadosCompletos = req.body;
 
-    // Validação básica da estrutura
+class AlunoController {
+  async criarComPessoa(req, res) {
+    const dadosCompletos = req.body;
+    const empresaId = req.empresaId;
+
+    console.log('📋 Controller recebeu:', {
+      empresaId,
+      pessoaNome: dadosCompletos.pessoa?.nome1,
+      alunoSenha: dadosCompletos.aluno?.controleAcesso?.senha ? '***' : 'AUSENTE'
+    });
+
     if (!dadosCompletos.pessoa || !dadosCompletos.aluno) {
       throw new ApiError(400, 'Dados da pessoa e do aluno são obrigatórios');
     }
 
-    const aluno = await alunoService.criarComPessoa(dadosCompletos);
+    if (!empresaId) {
+      console.error('❌ ERRO: empresaId ausente no request');
+      throw new ApiError(401, 'Usuário não autenticado ou empresaId ausente');
+    }
+
+    console.log('✅ Chamando alunoService com:', {
+      empresaId,
+      pessoaDoc: dadosCompletos.pessoa.doc1
+    });
+
+    const aluno = await alunoService.criarComPessoa(dadosCompletos, empresaId);
 
     res.status(201).json(
       new ApiResponse(201, aluno, 'Aluno criado com sucesso')
     );
-  });
+  }
 
-  /**
-   * Lista todos os alunos com paginação e filtros
-   * @route GET /api/alunos
-   */
-  listarTodos = asyncHandler(async (req, res) => {
+  async listarTodos(req, res) {
     const { situacao, page, limit, busca } = req.query;
+    const empresaId = req.empresaId;
 
     const resultado = await alunoService.listarTodos({
       situacao,
       page,
       limit,
       busca,
+      empresaId
     });
 
     res.status(200).json(
       new ApiResponse(200, resultado, 'Alunos listados com sucesso')
     );
-  });
+  }
 
-  /**
-   * Busca um aluno por ID
-   * @route GET /api/alunos/:id
-   */
-  buscarPorId = asyncHandler(async (req, res) => {
+  async buscarPorId(req, res) {
     const { id } = req.params;
+    const empresaId = req.empresaId;
 
-    const aluno = await alunoService.buscarPorId(id);
+    const aluno = await alunoService.buscarPorId(id, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, aluno, 'Aluno encontrado')
     );
-  });
+  }
 
-  /**
-   * Atualiza aluno e pessoa em transação atômica
-   * @route PUT /api/alunos/:id
-   */
-  atualizarComPessoa = asyncHandler(async (req, res) => {
+  async atualizarComPessoa(req, res) {
     const { id } = req.params;
     const dadosCompletos = req.body;
+    const empresaId = req.empresaId;
 
-    const aluno = await alunoService.atualizarComPessoa(id, dadosCompletos);
+    const aluno = await alunoService.atualizarComPessoa(id, dadosCompletos, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, aluno, 'Aluno atualizado com sucesso')
     );
-  });
+  }
 
-  /**
-   * Deleta um aluno (mantém a pessoa)
-   * @route DELETE /api/alunos/:id
-   */
-  deletar = asyncHandler(async (req, res) => {
+  async deletar(req, res) {
     const { id } = req.params;
+    const empresaId = req.empresaId;
 
-    await alunoService.deletar(id);
+    await alunoService.deletar(id, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, null, 'Aluno deletado com sucesso')
     );
-  });
+  }
 
-  /**
-   * Adiciona um horário ao aluno
-   * @route POST /api/alunos/:id/horarios
-   */
-  adicionarHorario = asyncHandler(async (req, res) => {
+  async adicionarHorario(req, res) {
     const { id } = req.params;
     const horario = req.body;
+    const empresaId = req.empresaId;
 
-    const aluno = await alunoService.adicionarHorario(id, horario);
+    const aluno = await alunoService.adicionarHorario(id, horario, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, aluno, 'Horário adicionado com sucesso')
     );
-  });
+  }
 
-  /**
-   * Valida senha de acesso do aluno
-   * @route POST /api/alunos/:id/validar-senha
-   */
-  validarSenha = asyncHandler(async (req, res) => {
+  async validarSenha(req, res) {
     const { id } = req.params;
     const { senha } = req.body;
+    const empresaId = req.empresaId;
 
     if (!senha) {
       throw new ApiError(400, 'Senha é obrigatória');
     }
 
-    const resultado = await alunoService.validarSenha(id, senha);
+    const resultado = await alunoService.validarSenha(id, senha, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, resultado, 'Senha validada com sucesso')
     );
-  });
+  }
 }
 
 module.exports = new AlunoController();
+ 

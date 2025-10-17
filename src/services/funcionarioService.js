@@ -24,29 +24,7 @@ class FuncionarioService {
     return `F${proximoNumero.toString().padStart(5, '0')}`;
   }
 
-  /**
-   * Gera o próximo código sequencial para pessoa (dentro da transação)
-   */
-  async _gerarProximoCodigoPessoa(prismaClient) {
-    const ultimaPessoa = await prismaClient.pessoa.findFirst({
-      orderBy: { codigo: 'desc' },
-      select: { codigo: true }
-    });
 
-    if (!ultimaPessoa || !ultimaPessoa.codigo) {
-      return '0001';
-    }
-
-    const ultimoNumero = parseInt(ultimaPessoa.codigo);
-    const proximoNumero = ultimoNumero + 1;
-
-    return proximoNumero.toString().padStart(4, '0');
-  }
-
-  /**
-   * 🆕 NOVA FUNÇÃO: Busca ou cria pessoa
-   * Verifica se pessoa existe por CPF/CNPJ e retorna o ID
-   */
   async _buscarOuCriarPessoa(dadosPessoa, prismaClient) {
     // PASSO 1: Validar dados mínimos obrigatórios
     if (!dadosPessoa.doc1) {
@@ -65,7 +43,7 @@ class FuncionarioService {
     // PASSO 3: Se pessoa existe, retornar o ID dela
     if (pessoaExistente) {
       console.log(`✅ Pessoa encontrada: ${pessoaExistente.nome1} (ID: ${pessoaExistente.id})`);
-      
+
       // OPCIONAL: Atualizar dados da pessoa existente se necessário
       const dadosAtualizacao = {
         nome1: dadosPessoa.nome1,
@@ -96,12 +74,12 @@ class FuncionarioService {
 
     // PASSO 4: Se pessoa NÃO existe, criar uma nova
     console.log(`📝 Criando nova pessoa: ${dadosPessoa.nome1}`);
-    
-    const codigo = await this._gerarProximoCodigoPessoa(prismaClient);
+
+
 
     const novaPessoa = await prismaClient.pessoa.create({
       data: {
-        codigo,
+
         tipo: dadosPessoa.tipo || 'FISICA',
         nome1: dadosPessoa.nome1,
         nome2: dadosPessoa.nome2 || null,
@@ -134,7 +112,7 @@ class FuncionarioService {
 
       if (!pessoa || !pessoa.doc1) {
         throw new ApiError(
-          400, 
+          400,
           'É necessário fornecer pessoaId OU os dados completos da pessoa com CPF/CNPJ'
         );
       }
@@ -159,7 +137,7 @@ class FuncionarioService {
 
     if (funcionarioExistente) {
       throw new ApiError(
-        400, 
+        400,
         `Já existe um funcionário cadastrado para ${pessoaValidada.nome1} (CPF: ${pessoaValidada.doc1})`
       );
     }
@@ -193,7 +171,6 @@ class FuncionarioService {
           pessoa: {
             select: {
               id: true,
-              codigo: true,
               nome1: true,
               nome2: true,
               doc1: true,
@@ -226,10 +203,17 @@ class FuncionarioService {
    * Lista todos os funcionários com paginação
    */
   async listarTodos(filtros = {}) {
+
+
     const { situacao, funcao, page = 1, limit = 10, busca } = filtros;
 
+    const { empresaId } = filtros;
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
+
     const skip = (Number(page) - 1) * Number(limit);
-    const where = {};
+    const where = { empresaId };
 
     if (situacao) {
       where.situacao = situacao;
@@ -258,7 +242,7 @@ class FuncionarioService {
           pessoa: {
             select: {
               id: true,
-              codigo: true,
+
               nome1: true,
               nome2: true,
               doc1: true,

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
+
 // Importar todas as rotas
 const pessoaRoutes = require('./pessoaRoutes');
 const alunoRoutes = require('./alunoRoutes');

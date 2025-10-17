@@ -66,7 +66,7 @@ class EmpresaRepository {
         usuarios: {
           select: {
             id: true,
-            cnpj: true,
+           // cnpj: true,
             nomeUsuario: true,
             nome: true,
             email: true,

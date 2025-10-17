@@ -10,7 +10,10 @@ async buscarTodos(filtros = {}) {
   try {
     console.log('📦 Repository - filtros recebidos:', filtros);
     const { status, dataInicio, dataFim, skip = 0, take = 10 } = filtros;
-    
+     if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
+
     const where = {};
     if (status) where.status = status;
     

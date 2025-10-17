@@ -36,11 +36,6 @@ class PessoaRepository {
     });
   }
 
-  async buscarPorCodigo(codigo) {
-    return await prisma.pessoa.findUnique({
-      where: { codigo },
-    });
-  }
 
   async buscarPordoc1(doc1) {
     return await prisma.pessoa.findUnique({

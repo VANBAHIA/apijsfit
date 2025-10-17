@@ -1,445 +1,532 @@
-const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const ApiError = require('../utils/apiError');
-const pessoaService = require('./pessoaService');
-
 const prisma = require('../config/database');
 
 class AlunoService {
-    /**
-     * Cria um novo aluno COM sua pessoa em uma transação atômica
-     * Garante que ou ambos são criados, ou nenhum é criado
-     */
-    async criarComPessoa(dadosCompletos) {
-        const { pessoa, aluno } = dadosCompletos;
+  /**
+   * Cria um novo aluno COM sua pessoa em uma transação atômica
+   * Garante que ou ambos são criados, ou nenhum é criado
+   */
+  async criarComPessoa(dadosCompletos, empresaId) {
+    const { pessoa, aluno } = dadosCompletos;
 
-        // Validações básicas
-        if (!pessoa || !pessoa.nome1 || !pessoa.doc1) {
-            throw new ApiError(400, 'Dados da pessoa são obrigatórios (nome1 e doc1)');
-        }
+    console.log('🔧 Service recebeu:', {
+      empresaId,
+      pessoaDoc: pessoa?.doc1,
+      pessoaNome: pessoa?.nome1
+    });
 
-        if (!aluno || !aluno.controleAcesso || !aluno.controleAcesso.senha) {
-            throw new ApiError(400, 'Senha de controle de acesso é obrigatória');
-        }
-
-        try {
-            // ✅ PASSO 1: Verificar se pessoa com esse CPF já existe
-            let pessoaExistente = await prisma.pessoa.findFirst({
-                where: { doc1: pessoa.doc1 }
-            });
-
-            let pessoaId;
-
-            // ✅ PASSO 2: Se pessoa existe, verificar se já é aluno
-            if (pessoaExistente) {
-                // Verificar se já existe aluno para essa pessoa
-                const alunoExistente = await prisma.aluno.findFirst({
-                    where: { pessoaId: pessoaExistente.id }
-                });
-
-                if (alunoExistente) {
-                    throw new ApiError(400, 'Já existe um aluno cadastrado com este CPF');
-                }
-
-                // ✅ Pessoa existe mas não é aluno → Atualizar dados da pessoa
-                const dadosPessoaAtualizados = {
-                    nome1: pessoa.nome1,
-                    nome2: pessoa.nome2 || null,
-                    doc2: pessoa.doc2 || null,
-                    situacao: pessoa.situacao || pessoaExistente.situacao
-                };
-
-                if (pessoa.dtNsc) {
-                    dadosPessoaAtualizados.dtNsc = new Date(pessoa.dtNsc);
-                }
-
-                if (pessoa.enderecos) {
-                    dadosPessoaAtualizados.enderecos = pessoa.enderecos;
-                }
-
-                if (pessoa.contatos) {
-                    dadosPessoaAtualizados.contatos = pessoa.contatos;
-                }
-
-                pessoaExistente = await prisma.pessoa.update({
-                    where: { id: pessoaExistente.id },
-                    data: dadosPessoaAtualizados
-                });
-
-                pessoaId = pessoaExistente.id;
-            } else {
-                // ✅ PASSO 3: Pessoa não existe → Criar nova pessoa
-                const codigo = await this._gerarProximoCodigoPessoa(prisma);
-
-                const dadosPessoa = {
-                    codigo,
-                    tipo: pessoa.tipo || 'FISICA',
-                    nome1: pessoa.nome1,
-                    nome2: pessoa.nome2 || null,
-                    doc1: pessoa.doc1,
-                    doc2: pessoa.doc2 || null,
-                    dtNsc: pessoa.dtNsc ? new Date(pessoa.dtNsc) : null,
-                    situacao: pessoa.situacao || 'ATIVO',
-                    enderecos: pessoa.enderecos || [],
-                    contatos: pessoa.contatos || []
-                };
-
-                const pessoaCriada = await prisma.pessoa.create({
-                    data: dadosPessoa
-                });
-
-                pessoaId = pessoaCriada.id;
-            }
-
-            // ✅ PASSO 4: Criar o aluno (sempre)
-            const senhaHash = await bcrypt.hash(aluno.controleAcesso.senha, 10);
-            const matricula = await this._gerarProximaMatricula(prisma);
-
-
-            const dadosAluno = {
-                matricula,
-                pessoaId,
-                vldExameMedico: aluno.vldExameMedico ? new Date(aluno.vldExameMedico) : null,
-                vldAvaliacao: aluno.vldAvaliacao ? new Date(aluno.vldAvaliacao) : null,
-                objetivo: aluno.objetivo || null,
-                profissao: aluno.profissao || null,
-                empresa: aluno.empresa || null,
-                responsavel: aluno.responsavel || null,
-                horarios: aluno.horarios || [],
-                controleAcesso: {
-                    senha: senhaHash,
-                    impressaoDigital1: aluno.controleAcesso.impressaoDigital1 || null,
-                    impressaoDigital2: aluno.controleAcesso.impressaoDigital2 || null
-                }
-            };
-
-            const alunoCriado = await prisma.aluno.create({
-                data: dadosAluno,
-                include: {
-                    pessoa: {
-                        select: {
-                            id: true,
-                            codigo: true,
-                            nome1: true,
-                            nome2: true,
-                            doc1: true,
-                            doc2: true,
-                            dtNsc: true,
-                            situacao: true,
-                            enderecos: true,
-                            contatos: true
-                        }
-                    }
-                }
-            });
-
-            return alunoCriado;
-
-        } catch (error) {
-            console.error('❌ Erro ao criar aluno:', error);
-
-            if (error instanceof ApiError) {
-                throw error;
-            }
-
-            throw new ApiError(500, `Erro ao criar aluno: ${error.message}`);
-        }
+    // Validações básicas
+    if (!pessoa || !pessoa.nome1 || !pessoa.doc1) {
+      throw new ApiError(400, 'Dados da pessoa são obrigatórios (nome1 e doc1)');
     }
 
-    /**
-     * Gera o próximo código sequencial para pessoa (dentro da transação)
-     */
-    async _gerarProximoCodigoPessoa(prismaClient) {
-        const ultimaPessoa = await prismaClient.pessoa.findFirst({
-            orderBy: { codigo: 'desc' },
-            select: { codigo: true }
+    if (!aluno || !aluno.controleAcesso || !aluno.controleAcesso.senha) {
+      throw new ApiError(400, 'Senha de controle de acesso é obrigatória');
+    }
+
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
+
+    try {
+      // ✅ PASSO 1: Verificar se pessoa com esse CPF já existe NA MESMA EMPRESA
+      let pessoaExistente = await prisma.pessoa.findFirst({
+        where: {
+          doc1: pessoa.doc1,
+          empresaId
+        }
+      });
+
+      let pessoaId;
+
+      // ✅ PASSO 2: Se pessoa existe, verificar se já é aluno
+      if (pessoaExistente) {
+        // Verificar se já existe aluno para essa pessoa
+        const alunoExistente = await prisma.aluno.findFirst({
+          where: {
+            pessoaId: pessoaExistente.id,
+            empresaId
+          }
         });
 
-        if (!ultimaPessoa || !ultimaPessoa.codigo) {
-            return '0001';
+        if (alunoExistente) {
+          throw new ApiError(400, 'Já existe um aluno cadastrado com este CPF nesta empresa');
         }
 
-        const ultimoNumero = parseInt(ultimaPessoa.codigo);
-        const proximoNumero = ultimoNumero + 1;
-
-        return proximoNumero.toString().padStart(4, '0');
-    }
-
-    /**
- * Gera a próxima matrícula sequencial
- */
-    async _gerarProximaMatricula(prismaClient) {
-        const ultimoAluno = await prismaClient.aluno.findFirst({
-            orderBy: { matricula: 'desc' },
-            select: { matricula: true }
-        });
-
-        if (!ultimoAluno || !ultimoAluno.matricula) {
-            return '00001'; // Primeira matrícula
-        }
-
-        const ultimoNumero = parseInt(ultimoAluno.matricula);
-        const proximoNumero = ultimoNumero + 1;
-
-        // Formata com 5 dígitos
-        return proximoNumero.toString().padStart(5, '0');
-    }
-
-    /**
-     * Lista todos os alunos com paginação
-     */
-    async listarTodos(filtros = {}) {
-        const { situacao, page = 1, limit = 10, busca } = filtros;
-
-        const skip = (Number(page) - 1) * Number(limit);
-        const where = {};
-
-        // Filtro por situação
-        if (situacao) {
-            where.pessoa = { situacao };
-        }
-
-        // Busca por nome ou CPF
-        if (busca) {
-            where.pessoa = {
-                ...where.pessoa,
-                OR: [
-                    { nome1: { contains: busca, mode: 'insensitive' } },
-                    { nome2: { contains: busca, mode: 'insensitive' } },
-                    { doc1: { contains: busca } }
-                ]
-            };
-        }
-
-        const [alunos, total] = await Promise.all([
-            prisma.aluno.findMany({
-                where,
-                include: {
-                    pessoa: {
-                        select: {
-                            id: true,
-                            codigo: true,
-                            nome1: true,
-                            nome2: true,
-                            doc1: true,
-                            doc2: true,
-                            dtNsc: true,
-                            situacao: true,
-                            contatos: true,
-                            enderecos: true
-                        }
-                    }
-                },
-                skip,
-                take: Number(limit),
-                orderBy: { createdAt: 'desc' }
-            }),
-            prisma.aluno.count({ where })
-        ]);
-
-        return {
-            data: alunos,
-            pagination: {
-                total,
-                page: Number(page),
-                limit: Number(limit),
-                totalPages: Math.ceil(total / Number(limit))
-            }
+        // ✅ Pessoa existe mas não é aluno → Atualizar dados da pessoa
+        const dadosPessoaAtualizados = {
+          nome1: pessoa.nome1,
+          nome2: pessoa.nome2 || null,
+          doc2: pessoa.doc2 || null,
+          situacao: pessoa.situacao || pessoaExistente.situacao
         };
-    }
 
-    /**
-     * Busca um aluno por ID com todos os dados
-     */
-    async buscarPorId(id) {
-        const aluno = await prisma.aluno.findUnique({
-            where: { id },
-            include: {
-                pessoa: true  // ← Apenas isso, sem includes aninhados
+        if (pessoa.dtNsc) {
+          dadosPessoaAtualizados.dtNsc = new Date(pessoa.dtNsc);
+        }
+
+        if (pessoa.enderecos) {
+          dadosPessoaAtualizados.enderecos = pessoa.enderecos;
+        }
+
+        if (pessoa.contatos) {
+          dadosPessoaAtualizados.contatos = pessoa.contatos;
+        }
+
+        pessoaExistente = await prisma.pessoa.update({
+          where: { id: pessoaExistente.id },
+          data: dadosPessoaAtualizados
+        });
+
+        pessoaId = pessoaExistente.id;
+        console.log('✅ Pessoa existente atualizada:', pessoaId);
+      } else {
+        // ✅ PASSO 3: Pessoa não existe → Criar nova pessoa
+  
+        const dadosPessoa = {
+          empresaId,
+          tipo: pessoa.tipo || 'FISICA',
+          nome1: pessoa.nome1,
+          nome2: pessoa.nome2 || null,
+          doc1: pessoa.doc1,
+          doc2: pessoa.doc2 || null,
+          dtNsc: pessoa.dtNsc ? new Date(pessoa.dtNsc) : null,
+          situacao: pessoa.situacao || 'ATIVO',
+          enderecos: pessoa.enderecos || [],
+          contatos: pessoa.contatos || []
+        };
+
+        const pessoaCriada = await prisma.pessoa.create({
+          data: dadosPessoa
+        });
+
+        pessoaId = pessoaCriada.id;
+        console.log('✅ Pessoa criada:', pessoaId);
+      }
+
+      // ✅ PASSO 4: Criar o aluno (sempre)
+      const senhaHash = await bcrypt.hash(aluno.controleAcesso.senha, 10);
+      const matricula = await this._gerarProximaMatricula(prisma, empresaId);
+
+      const dadosAluno = {
+        empresaId,
+        matricula,
+        pessoaId,
+        vldExameMedico: aluno.vldExameMedico ? new Date(aluno.vldExameMedico) : null,
+        vldAvaliacao: aluno.vldAvaliacao ? new Date(aluno.vldAvaliacao) : null,
+        objetivo: aluno.objetivo || null,
+        profissao: aluno.profissao || null,
+        empresa_nome: aluno.empresa_nome || null,
+        responsavel: aluno.responsavel || null,
+        horarios: aluno.horarios || [],
+        controleAcesso: {
+          senha: senhaHash,
+          impressaoDigital1: aluno.controleAcesso.impressaoDigital1 || null,
+          impressaoDigital2: aluno.controleAcesso.impressaoDigital2 || null
+        }
+      };
+
+      const alunoCriado = await prisma.aluno.create({
+        data: dadosAluno,
+        include: {
+          pessoa: {
+            select: {
+              id: true,
+              
+              nome1: true,
+              nome2: true,
+              doc1: true,
+              doc2: true,
+              dtNsc: true,
+              situacao: true,
+              enderecos: true,
+              contatos: true
             }
-        });
-
-        if (!aluno) {
-            throw new ApiError(404, 'Aluno não encontrado');
+          }
         }
+      });
 
-        return aluno;
+      console.log('✅ Aluno criado com sucesso:', {
+        alunoId: alunoCriado.id,
+        matricula: alunoCriado.matricula,
+        empresaId
+      });
+
+      return alunoCriado;
+
+    } catch (error) {
+      console.error('❌ Erro ao criar aluno:', error);
+
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      throw new ApiError(500, `Erro ao criar aluno: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gera o próximo código sequencial para pessoa (dentro da empresa)
+   */
+  
+  /**
+   * Gera a próxima matrícula sequencial (dentro da empresa)
+   */
+  async _gerarProximaMatricula(prismaClient, empresaId) {
+    const ultimoAluno = await prismaClient.aluno.findFirst({
+      where: { empresaId },
+      orderBy: { matricula: 'desc' },
+      select: { matricula: true }
+    });
+
+    if (!ultimoAluno || !ultimoAluno.matricula) {
+      return '00001';
     }
 
-    /**
-     * Atualiza aluno E pessoa em transação atômica
-     */
-    async atualizarComPessoa(id, dadosCompletos) {
-        const { pessoa, aluno } = dadosCompletos;
+    const ultimoNumero = parseInt(ultimoAluno.matricula);
+    const proximoNumero = ultimoNumero + 1;
 
-        // Verificar se aluno existe
-        const alunoExistente = await prisma.aluno.findUnique({
-            where: { id },
-            select: { pessoaId: true }
-        });
+    return proximoNumero.toString().padStart(5, '0');
+  }
 
-        if (!alunoExistente) {
-            throw new ApiError(404, 'Aluno não encontrado');
-        }
+  /**
+   * Lista todos os alunos com paginação e filtros
+   */
+  async listarTodos(filtros = {}) {
+    const { situacao, page = 1, limit = 10, busca, empresaId } = filtros;
 
-        try {
-            // ✅ TRANSAÇÃO ATÔMICA
-            const resultado = await prisma.$transaction(async (tx) => {
-                // 1️⃣ Atualizar Pessoa (se dados foram enviados)
-                if (pessoa) {
-                    const dadosPessoa = {
-                        nome1: pessoa.nome1,
-                        nome2: pessoa.nome2 || null,
-                        doc1: pessoa.doc1,
-                        doc2: pessoa.doc2 || null,
-                        situacao: pessoa.situacao || 'ATIVO'
-                    };
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
 
-                    if (pessoa.dtNsc) {
-                        dadosPessoa.dtNsc = new Date(pessoa.dtNsc);
-                    }
+    const skip = (Number(page) - 1) * Number(limit);
+    const where = { empresaId };
 
-                    if (pessoa.enderecos) {
-                        dadosPessoa.enderecos = pessoa.enderecos;
-                    }
+    // Filtro por situação
+    if (situacao) {
+      where.pessoa = { situacao };
+    }
 
-                    if (pessoa.contatos) {
-                        dadosPessoa.contatos = pessoa.contatos;
-                    }
+    // Busca por nome ou CPF
+    if (busca) {
+      where.pessoa = {
+        ...where.pessoa,
+        OR: [
+          { nome1: { contains: busca, mode: 'insensitive' } },
+          { nome2: { contains: busca, mode: 'insensitive' } },
+          { doc1: { contains: busca } }
+        ]
+      };
+    }
 
-                    await tx.pessoa.update({
-                        where: { id: alunoExistente.pessoaId },
-                        data: dadosPessoa
-                    }, {
-                        isolationLevel: 'ReadCommitted',
-                        timeout: 10000
-                    });
-                }
-
-                // 2️⃣ Atualizar Aluno
-                if (aluno) {
-                    const dadosAluno = {
-                        vldExameMedico: aluno.vldExameMedico ? new Date(aluno.vldExameMedico) : undefined,
-                        vldAvaliacao: aluno.vldAvaliacao ? new Date(aluno.vldAvaliacao) : undefined,
-                        objetivo: aluno.objetivo,
-                        profissao: aluno.profissao,
-                        empresa: aluno.empresa,
-                        responsavel: aluno.responsavel,
-                        horarios: aluno.horarios
-                    };
-
-                    // Hash da senha se foi enviada
-                    if (aluno.controleAcesso?.senha) {
-                        dadosAluno.controleAcesso = {
-                            senha: await bcrypt.hash(aluno.controleAcesso.senha, 10),
-                            impressaoDigital1: aluno.controleAcesso.impressaoDigital1 || null,
-                            impressaoDigital2: aluno.controleAcesso.impressaoDigital2 || null
-                        };
-                    }
-
-                    await tx.aluno.update({
-                        where: { id },
-                        data: dadosAluno
-                    });
-                }
-
-                // 3️⃣ Buscar aluno atualizado
-                // 3️⃣ Buscar aluno atualizado
-                return await tx.aluno.findUnique({
-                    where: { id },
-                    include: {
-                        pessoa: true  // ✅ Apenas isso
-                    }
-                });
-            });
-
-            return resultado;
-        } catch (error) {
-            console.error('❌ Erro na transação de atualização:', error);
-
-            if (error instanceof ApiError) {
-                throw error;
+    try {
+      const [alunos, total] = await Promise.all([
+        prisma.aluno.findMany({
+          where,
+          include: {
+            pessoa: {
+              select: {
+                id: true,
+                nome1: true,
+                nome2: true,
+                doc1: true,
+                doc2: true,
+                dtNsc: true,
+                situacao: true,
+                contatos: true,
+                enderecos: true
+              }
             }
+          },
+          skip,
+          take: Number(limit),
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.aluno.count({ where })
+      ]);
 
-            throw new ApiError(500, `Erro ao atualizar aluno: ${error.message}`);
+      return {
+        data: alunos,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(total / Number(limit))
         }
+      };
+    } catch (error) {
+      console.error('❌ Erro ao listar alunos:', error);
+      throw new ApiError(500, `Erro ao listar alunos: ${error.message}`);
+    }
+  }
+
+  /**
+   * Busca um aluno por ID (validando se pertence à empresa)
+   */
+  async buscarPorId(id, empresaId) {
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
     }
 
-    /**
-     * Deleta aluno (a pessoa permanece no banco)
-     */
-    async deletar(id) {
-        const aluno = await prisma.aluno.findUnique({
-            where: { id }
-        });
-
-        if (!aluno) {
-            throw new ApiError(404, 'Aluno não encontrado');
+    try {
+      const aluno = await prisma.aluno.findUnique({
+        where: { id },
+        include: {
+          pessoa: true
         }
+      });
 
-        await prisma.aluno.delete({
-            where: { id }
-        });
+      if (!aluno) {
+        throw new ApiError(404, 'Aluno não encontrado');
+      }
 
-        return { message: 'Aluno deletado com sucesso' };
+      // ✅ Validar que o aluno pertence à empresa
+      if (aluno.empresaId !== empresaId) {
+        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+      }
+
+      return aluno;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Erro ao buscar aluno: ${error.message}`);
+    }
+  }
+
+  /**
+   * Atualiza aluno E pessoa em transação atômica
+   */
+  async atualizarComPessoa(id, dadosCompletos, empresaId) {
+    const { pessoa, aluno } = dadosCompletos;
+
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
     }
 
-    /**
-     * Adiciona um horário ao aluno
-     */
-    async adicionarHorario(id, horario) {
-        const { local, diasSemana, horarioEntrada, horarioSaida } = horario;
+    // Verificar se aluno existe e pertence à empresa
+    const alunoExistente = await prisma.aluno.findUnique({
+      where: { id },
+      select: { pessoaId: true, empresaId: true }
+    });
 
-        if (!local || !diasSemana || !horarioEntrada || !horarioSaida) {
-            throw new ApiError(400, 'Todos os campos do horário são obrigatórios');
+    if (!alunoExistente) {
+      throw new ApiError(404, 'Aluno não encontrado');
+    }
+
+    if (alunoExistente.empresaId !== empresaId) {
+      throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+    }
+
+    try {
+      // ✅ TRANSAÇÃO ATÔMICA
+      const resultado = await prisma.$transaction(async (tx) => {
+        // 1️⃣ Atualizar Pessoa (se dados foram enviados)
+        if (pessoa) {
+          const dadosPessoa = {
+            nome1: pessoa.nome1,
+            nome2: pessoa.nome2 || null,
+            doc1: pessoa.doc1,
+            doc2: pessoa.doc2 || null,
+            situacao: pessoa.situacao || 'ATIVO'
+          };
+
+          if (pessoa.dtNsc) {
+            dadosPessoa.dtNsc = new Date(pessoa.dtNsc);
+          }
+
+          if (pessoa.enderecos) {
+            dadosPessoa.enderecos = pessoa.enderecos;
+          }
+
+          if (pessoa.contatos) {
+            dadosPessoa.contatos = pessoa.contatos;
+          }
+
+          await tx.pessoa.update({
+            where: { id: alunoExistente.pessoaId },
+            data: dadosPessoa
+          });
         }
 
-        const aluno = await prisma.aluno.findUnique({
-            where: { id }
-        });
+        // 2️⃣ Atualizar Aluno
+        if (aluno) {
+          const dadosAluno = {
+            vldExameMedico: aluno.vldExameMedico ? new Date(aluno.vldExameMedico) : undefined,
+            vldAvaliacao: aluno.vldAvaliacao ? new Date(aluno.vldAvaliacao) : undefined,
+            objetivo: aluno.objetivo,
+            profissao: aluno.profissao,
+            empresa_nome: aluno.empresa_nome,
+            responsavel: aluno.responsavel,
+            horarios: aluno.horarios
+          };
 
-        if (!aluno) {
-            throw new ApiError(404, 'Aluno não encontrado');
-        }
+          // Hash da senha se foi enviada
+          if (aluno.controleAcesso?.senha) {
+            dadosAluno.controleAcesso = {
+              senha: await bcrypt.hash(aluno.controleAcesso.senha, 10),
+              impressaoDigital1: aluno.controleAcesso.impressaoDigital1 || null,
+              impressaoDigital2: aluno.controleAcesso.impressaoDigital2 || null
+            };
+          }
 
-        const novoHorario = { local, diasSemana, horarioEntrada, horarioSaida };
-
-        const alunoAtualizado = await prisma.aluno.update({
+          await tx.aluno.update({
             where: { id },
-            data: {
-                horarios: {
-                    push: novoHorario
-                }
-            },
-            include: {
-                pessoa: true
-            }
-        });
-
-        return alunoAtualizado;
-    }
-
-    /**
-     * Valida senha de acesso
-     */
-    async validarSenha(id, senha) {
-        const aluno = await prisma.aluno.findUnique({
-            where: { id },
-            select: { controleAcesso: true }
-        });
-
-        if (!aluno) {
-            throw new ApiError(404, 'Aluno não encontrado');
+            data: dadosAluno
+          });
         }
 
-        const senhaValida = await bcrypt.compare(senha, aluno.controleAcesso.senha);
+        // 3️⃣ Buscar aluno atualizado
+        return await tx.aluno.findUnique({
+          where: { id },
+          include: {
+            pessoa: true
+          }
+        });
+      });
 
-        if (!senhaValida) {
-            throw new ApiError(401, 'Senha inválida');
-        }
+      console.log('✅ Aluno atualizado com sucesso:', id);
+      return resultado;
+    } catch (error) {
+      console.error('❌ Erro na transação de atualização:', error);
 
-        return { valido: true };
+      if (error instanceof ApiError) {
+        throw error;
+      }
+
+      throw new ApiError(500, `Erro ao atualizar aluno: ${error.message}`);
     }
+  }
+
+  /**
+   * Deleta aluno (a pessoa permanece no banco)
+   */
+  async deletar(id, empresaId) {
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
+
+    try {
+      const aluno = await prisma.aluno.findUnique({
+        where: { id },
+        select: { empresaId: true }
+      });
+
+      if (!aluno) {
+        throw new ApiError(404, 'Aluno não encontrado');
+      }
+
+      if (aluno.empresaId !== empresaId) {
+        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+      }
+
+      await prisma.aluno.delete({
+        where: { id }
+      });
+
+      console.log('✅ Aluno deletado com sucesso:', id);
+      return { message: 'Aluno deletado com sucesso' };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Erro ao deletar aluno: ${error.message}`);
+    }
+  }
+
+  /**
+   * Adiciona um horário ao aluno
+   */
+  async adicionarHorario(id, horario, empresaId) {
+    const { local, diasSemana, horarioEntrada, horarioSaida } = horario;
+
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
+
+    if (!local || !diasSemana || !horarioEntrada || !horarioSaida) {
+      throw new ApiError(400, 'Todos os campos do horário são obrigatórios');
+    }
+
+    try {
+      const aluno = await prisma.aluno.findUnique({
+        where: { id },
+        select: { empresaId: true }
+      });
+
+      if (!aluno) {
+        throw new ApiError(404, 'Aluno não encontrado');
+      }
+
+      if (aluno.empresaId !== empresaId) {
+        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+      }
+
+      const novoHorario = { local, diasSemana, horarioEntrada, horarioSaida };
+
+      const alunoAtualizado = await prisma.aluno.update({
+        where: { id },
+        data: {
+          horarios: {
+            push: novoHorario
+          }
+        },
+        include: {
+          pessoa: true
+        }
+      });
+
+      console.log('✅ Horário adicionado ao aluno:', id);
+      return alunoAtualizado;
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Erro ao adicionar horário: ${error.message}`);
+    }
+  }
+
+  /**
+   * Valida senha de acesso
+   */
+  async validarSenha(id, senha, empresaId) {
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório');
+    }
+
+    try {
+      const aluno = await prisma.aluno.findUnique({
+        where: { id },
+        select: {
+          empresaId: true,
+          controleAcesso: true
+        }
+      });
+
+      if (!aluno) {
+        throw new ApiError(404, 'Aluno não encontrado');
+      }
+
+      if (aluno.empresaId !== empresaId) {
+        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+      }
+
+      const senhaValida = await bcrypt.compare(senha, aluno.controleAcesso.senha);
+
+      if (!senhaValida) {
+        throw new ApiError(401, 'Senha inválida');
+      }
+
+      console.log('✅ Senha validada com sucesso para aluno:', id);
+      return { valido: true };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      throw new ApiError(500, `Erro ao validar senha: ${error.message}`);
+    }
+  }
 }
-
+ 
 module.exports = new AlunoService();

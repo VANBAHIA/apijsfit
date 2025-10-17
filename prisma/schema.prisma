@@ -193,7 +193,6 @@ model Pessoa {
   empresaId String  @db.ObjectId
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  codigo   String
   tipo     String
   nome1    String
   nome2    String?
@@ -211,9 +210,8 @@ model Pessoa {
   alunos       Aluno[]
   funcionarios Funcionario[]
 
-  @@unique([empresaId, codigo])
+  @@unique([empresaId])
   @@unique([empresaId, doc1])
-  @@index([empresaId])
   @@map("pessoas")
 }
 

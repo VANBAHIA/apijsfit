@@ -10,6 +10,13 @@ class FuncionarioController {
    */
   criarComPessoa = asyncHandler(async (req, res) => {
     const dadosCompletos = req.body;
+    const empresaId = req.empresaId;
+
+    console.log('📋 Controller recebeu:', {
+      empresaId,
+      pessoaNome: dadosCompletos.pessoa?.nome1,
+      alunoSenha: dadosCompletos.aluno?.controleAcesso?.senha ? '***' : 'AUSENTE'
+    });
 
     // Validação básica da estrutura
     if (!dadosCompletos.pessoa || !dadosCompletos.funcionario) {
@@ -29,14 +36,9 @@ class FuncionarioController {
    */
   listarTodos = asyncHandler(async (req, res) => {
     const { situacao, funcao, page, limit, busca } = req.query;
+    const empresaId = req.empresaId;
+    const resultado = await funcionarioService.listarTodos({ empresaId });
 
-    const resultado = await funcionarioService.listarTodos({
-      situacao,
-      funcao,
-      page,
-      limit,
-      busca
-    });
 
     res.status(200).json(
       new ApiResponse(200, resultado, 'Funcionários listados com sucesso')

@@ -66,40 +66,71 @@ class UsuarioService {
     return await usuarioRepository.criar(data);
   }
 
-  async login(nomeUsuario, senha, empresaId) {
-    // ✅ VALIDAR EMPRESA FORNECIDA
-    if (!empresaId) {
-      throw new ApiError(400, 'Empresa não selecionada');
-    }
+async login(nomeUsuario, senha, empresaId) {
+  // ✅ VALIDAR EMPRESA FORNECIDA
+  if (!empresaId) {
+    throw new ApiError(400, 'Empresa não selecionada');
+  }
 
-    // Buscar usuário com filtro de empresa
-    const usuario = await usuarioRepository.buscarPorNomeUsuario(nomeUsuario);
+  // Buscar usuário com filtro de empresa
+  const usuario = await usuarioRepository.buscarPorNomeUsuario(nomeUsuario);
 
-    if (!usuario) {
-      throw new ApiError(401, 'Credenciais inválidas');
-    }
+  if (!usuario) {
+    throw new ApiError(401, 'Credenciais inválidas');
+  }
 
-    // ✅ VALIDAR SE USUÁRIO PERTENCE À EMPRESA SELECIONADA
-    if (usuario.empresaId !== empresaId) {
-      throw new ApiError(401, 'Credenciais inválidas');
-    }
+  // ✅ SUPER_ADMIN pode logar em qualquer empresa, outros perfis precisam pertencer à empresa
+  if (usuario.perfil !== 'SUPER_ADMIN' && usuario.empresaId !== empresaId) {
+    throw new ApiError(401, 'Credenciais inválidas');
+  }
 
-    // Verificar situação do usuário
-    if (usuario.situacao !== 'ATIVO') {
-      throw new ApiError(401, `Usuário ${usuario.situacao.toLowerCase()}`);
-    }
+  // Verificar situação do usuário
+  if (usuario.situacao !== 'ATIVO') {
+    throw new ApiError(401, `Usuário ${usuario.situacao.toLowerCase()}`);
+  }
 
-    // Verificar situação da empresa
-    if (usuario.empresa.situacao !== 'ATIVO') {
-      throw new ApiError(401, 'Empresa não está ativa');
-    }
+  // ✅ Para SUPER_ADMIN, buscar empresa selecionada (não a dele)
+  const empresaParaValidar = usuario.perfil === 'SUPER_ADMIN' 
+    ? await empresaRepository.buscarPorId(empresaId)
+    : usuario.empresa;
 
-    // Verificar licença ativa
-    if (!usuario.empresa.licencas || usuario.empresa.licencas.length === 0) {
+  if (!empresaParaValidar) {
+    throw new ApiError(401, 'Empresa não encontrada');
+  }
+
+  // Verificar situação da empresa
+  if (empresaParaValidar.situacao !== 'ATIVO') {
+    throw new ApiError(401, 'Empresa não está ativa');
+  }
+
+  // ✅ SUPER_ADMIN pula verificação de licença
+ let licenca = null;
+if (usuario.perfil === 'SUPER_ADMIN') {
+  // Criar licença temporária com 100 anos
+  const dataExpiracao = new Date();
+  dataExpiracao.setFullYear(dataExpiracao.getFullYear() + 100);
+  
+  const dataInicio = new Date(); // ✅ Adicionar data de início
+  
+  licenca = {
+    tipo: 'VITALICIA', // ✅ Usar tipo válido do sistema
+    dataInicio: dataInicio, // ✅ Adicionar
+    dataExpiracao: dataExpiracao,
+    maxUsuarios: 999999,
+    maxAlunos: 999999, // ✅ Adicionar
+    funcionalidades: ['TODAS'], // ✅ Usar array
+    observacoes: 'Licença temporária SUPER_ADMIN', // ✅ Adicionar
+    diasRestantes:"999999" 
+  };
+  
+  console.log(`[LOGIN] SUPER_ADMIN logando na empresa: ${empresaId}`);
+  } else {
+    // Verificar licença ativa para usuários normais
+    if (!empresaParaValidar.licencas || empresaParaValidar.licencas.length === 0) {
       throw new ApiError(401, 'Empresa sem licença ativa');
     }
 
-    const licenca = usuario.empresa.licencas[0];
+    licenca = empresaParaValidar.licencas[0];
 
     if (licenca.situacao !== 'ATIVA') {
       throw new ApiError(401, `Licença ${licenca.situacao.toLowerCase()}`);
@@ -109,53 +140,60 @@ class UsuarioService {
     if (agora > licenca.dataExpiracao) {
       throw new ApiError(401, 'Licença expirada');
     }
-
-    // Validar senha
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
-
-    if (!senhaValida) {
-      throw new ApiError(401, 'Credenciais inválidas');
-    }
-
-    // Atualizar último acesso
-    await usuarioRepository.atualizarUltimoAcesso(usuario.id);
-
-    // Gerar token JWT
-    const token = jwt.sign(
-      {
-        id: usuario.id,
-        nomeUsuario: usuario.nomeUsuario,
-        empresaId: usuario.empresaId,
-        perfil: usuario.perfil,
-        permissoes: usuario.permissoes
-      },
-      process.env.JWT_SECRET || 'secret-key-change-in-production',
-      { expiresIn: '8h' }
-    );
-
-    return {
-      token,
-      usuario: {
-        id: usuario.id,
-        nomeUsuario: usuario.nomeUsuario,
-        nome: usuario.nome,
-        email: usuario.email,
-        perfil: usuario.perfil,
-        permissoes: usuario.permissoes,
-        empresa: {
-          id: usuario.empresa.id,
-          razaoSocial: usuario.empresa.razaoSocial,
-          nomeFantasia: usuario.empresa.nomeFantasia
-        },
-        licenca: {
-          tipo: licenca.tipo,
-          dataExpiracao: licenca.dataExpiracao,
-          funcionalidades: licenca.funcionalidades,
-          diasRestantes: Math.ceil((licenca.dataExpiracao - agora) / (1000 * 60 * 60 * 24))
-        }
-      }
-    };
   }
+
+  // Validar senha
+  const senhaValida = await bcrypt.compare(senha, usuario.senha);
+
+  if (!senhaValida) {
+    throw new ApiError(401, 'Credenciais inválidas');
+  }
+
+  // Atualizar último acesso
+  await usuarioRepository.atualizarUltimoAcesso(usuario.id);
+
+  // ✅ Para SUPER_ADMIN, usar empresaId selecionada no token
+  const empresaIdToken = usuario.perfil === 'SUPER_ADMIN' ? empresaId : usuario.empresaId;
+
+  // Gerar token JWT
+  const token = jwt.sign(
+    {
+      id: usuario.id,
+      nomeUsuario: usuario.nomeUsuario,
+      empresaId: empresaIdToken, // ✅ Empresa selecionada
+      perfil: usuario.perfil,
+      permissoes: usuario.permissoes
+    },
+    process.env.JWT_SECRET || 'secret-key-change-in-production',
+    { expiresIn: '8h' }
+  );
+
+  const agora = new Date();
+  const diasRestantes = Math.ceil((licenca.dataExpiracao - agora) / (1000 * 60 * 60 * 24));
+
+  return {
+    token,
+    usuario: {
+      id: usuario.id,
+      nomeUsuario: usuario.nomeUsuario,
+      nome: usuario.nome,
+      email: usuario.email,
+      perfil: usuario.perfil,
+      permissoes: usuario.permissoes,
+      empresa: {
+        id: empresaParaValidar.id,
+        razaoSocial: empresaParaValidar.razaoSocial,
+        nomeFantasia: empresaParaValidar.nomeFantasia
+      },
+      licenca: {
+        tipo: licenca.tipo,
+        dataExpiracao: licenca.dataExpiracao,
+        funcionalidades: licenca.funcionalidades,
+        diasRestantes: diasRestantes > 36500 ? '∞' : diasRestantes // ✅ Mostrar infinito para SUPER_ADMIN
+      }
+    }
+  };
+}
 
   async buscarTodos(filtros) {
     return await usuarioRepository.buscarTodos(filtros);

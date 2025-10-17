@@ -4,36 +4,11 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 class PessoaService {
-  async gerarProximoCodigo() {
-    // Busca a última pessoa ordenada por código (decrescente)
-    const ultimaPessoa = await prisma.pessoa.findFirst({
-      orderBy: { codigo: 'desc' },
-      select: { codigo: true }
-    });
 
-    if (!ultimaPessoa || !ultimaPessoa.codigo) {
-      return '0001'; // Primeiro código
-    }
-
-    // Incrementa o código
-    const ultimoNumero = parseInt(ultimaPessoa.codigo);
-    const proximoNumero = ultimoNumero + 1;
-
-    // Formata com zeros à esquerda (4 dígitos)
-    return proximoNumero.toString().padStart(4, '0');
-  }
 
   async criar(data) {
-    // ✅ Gerar código automaticamente se não fornecido
-    if (!data.codigo) {
-      data.codigo = await this.gerarProximoCodigo();
-    }
 
-    // ✅ Validar duplicidade de código
-    const pessoaExistente = await pessoaRepository.buscarPorCodigo(data.codigo);
-    if (pessoaExistente) {
-      throw new ApiError(400, 'Código já cadastrado');
-    }
+
 
     // ✅ Validar doc1 (CPF/CNPJ) se fornecido
     if (data.doc1) {
@@ -69,8 +44,8 @@ class PessoaService {
     }
 
     // Validar se código já existe (caso esteja sendo alterado)
-    if (data.codigo && data.codigo !== pessoa.codigo) {
-      const codigoExistente = await pessoaRepository.buscarPorCodigo(data.codigo);
+    if (data.id && data.id !== pessoa.id) {
+      const codigoExistente = await pessoaRepository.buscarPorId(data.id);
       if (codigoExistente) {
         throw new ApiError(400, 'Código já cadastrado');
       }

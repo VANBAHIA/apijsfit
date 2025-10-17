@@ -3,47 +3,50 @@ const router = express.Router();
 const alunoController = require('../controllers/alunoController');
 const { verificarAutenticacao } = require('../middlewares/auth');
 const { verificarPermissaoModulo } = require('../middlewares/verificarPermissao');
+const { setEmpresaContext } = require('../middlewares/empresaContext');
+
+
 
 // ✅ APLICAR PERMISSÕES - Usando os nomes corretos dos métodos
 router.get('/',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext ,
   verificarPermissaoModulo('alunos', 'acessar'),
   alunoController.listarTodos
 );
 
 router.post('/',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext,
   verificarPermissaoModulo('alunos', 'criar'),
   alunoController.criarComPessoa  // ← Era 'criar' mas o método é 'criarComPessoa'
 );
 
 router.get('/:id',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext,
   verificarPermissaoModulo('alunos', 'acessar'),
   alunoController.buscarPorId
 );
 
 router.put('/:id',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext,
   verificarPermissaoModulo('alunos', 'editar'),
   alunoController.atualizarComPessoa  // ← Era 'atualizar' mas o método é 'atualizarComPessoa'
 );
 
 router.delete('/:id',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext,
   verificarPermissaoModulo('alunos', 'excluir'),
   alunoController.deletar
 );
 
 // Rotas adicionais
 router.post('/:id/horarios',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext,
   verificarPermissaoModulo('alunos', 'editar'),
   alunoController.adicionarHorario
 );
 
 router.post('/:id/validar-senha',
-  verificarAutenticacao,
+  verificarAutenticacao,setEmpresaContext,
   alunoController.validarSenha
 );
 

@@ -1,144 +1,122 @@
 const descontoRepository = require('../repositories/descontoRepository');
 const ApiError = require('../utils/apiError');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 class DescontoService {
-  /**
-   * Valida os dados do desconto
-   */
   validarDesconto(data) {
-    // Validar descrição
     if (!data.descricao || data.descricao.trim() === '') {
       throw new ApiError(400, 'Descrição é obrigatória');
     }
-
-    // Validar tipo
     if (!data.tipo || !['PERCENTUAL', 'MONETARIO'].includes(data.tipo)) {
       throw new ApiError(400, 'Tipo deve ser PERCENTUAL ou MONETARIO');
     }
-
-    // Validar valor
     if (data.valor === undefined || data.valor === null) {
       throw new ApiError(400, 'Valor é obrigatório');
     }
 
     const valor = Number(data.valor);
-
-    if (isNaN(valor) || valor < 0) {
-      throw new ApiError(400, 'Valor deve ser um número positivo');
-    }
-
-    // Validação específica para percentual
+    if (isNaN(valor) || valor < 0) throw new ApiError(400, 'Valor deve ser positivo');
     if (data.tipo === 'PERCENTUAL' && valor > 100) {
       throw new ApiError(400, 'Desconto percentual não pode ser maior que 100%');
     }
-
-    return true;
   }
 
   async criar(data) {
-    // Validar dados
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     this.validarDesconto(data);
 
-    // Verificar duplicidade
-    const descontoExistente = await descontoRepository.buscarPorDescricao(data.descricao);
-    if (descontoExistente) {
-      throw new ApiError(400, 'Já existe um desconto com esta descrição');
-    }
+    const existente = await prisma.desconto.findFirst({
+      where: { descricao: data.descricao.trim(), empresaId: data.empresaId },
+    });
+    if (existente) throw new ApiError(400, 'Já existe um desconto com esta descrição nesta empresa');
 
-    return await descontoRepository.criar({
-      descricao: data.descricao.trim(),
-      tipo: data.tipo,
-      valor: Number(data.valor),
-      status: data.status || 'ATIVO'
+    return await prisma.desconto.create({
+      data: {
+        descricao: data.descricao.trim(),
+        tipo: data.tipo,
+        valor: Number(data.valor),
+        status: data.status || 'ATIVO',
+        empresaId: data.empresaId, // ✅ importante
+      },
     });
   }
 
-  async buscarTodos(filtros) {
-    return await descontoRepository.buscarTodos(filtros);
+  async buscarTodos(filtros = {}) {
+    const { empresaId, status, tipo, skip = 0, take = 10 } = filtros;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+
+    const where = { empresaId };
+    if (status) where.status = status;
+    if (tipo) where.tipo = tipo;
+
+    const [total, descontos] = await Promise.all([
+      prisma.desconto.count({ where }),
+      prisma.desconto.findMany({
+        where,
+        skip: Number(skip),
+        take: Number(take),
+        orderBy: { descricao: 'asc' },
+      }),
+    ]);
+
+    return { total, descontos };
   }
 
-  async buscarPorId(id) {
-    const desconto = await descontoRepository.buscarPorId(id);
-
-    if (!desconto) {
-      throw new ApiError(404, 'Desconto não encontrado');
-    }
-
+  async buscarPorId(id, empresaId) {
+    const desconto = await prisma.desconto.findFirst({ where: { id, empresaId } });
+    if (!desconto) throw new ApiError(404, 'Desconto não encontrado para esta empresa');
     return desconto;
   }
 
   async atualizar(id, data) {
-    const desconto = await descontoRepository.buscarPorId(id);
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-    if (!desconto) {
-      throw new ApiError(404, 'Desconto não encontrado');
-    }
+    const desconto = await prisma.desconto.findFirst({
+      where: { id, empresaId: data.empresaId },
+    });
+    if (!desconto) throw new ApiError(404, 'Desconto não encontrado');
 
-    // Validar dados se foram enviados
-    if (data.descricao || data.tipo || data.valor !== undefined) {
-      this.validarDesconto({ 
-        descricao: data.descricao || desconto.descricao,
-        tipo: data.tipo || desconto.tipo,
-        valor: data.valor !== undefined ? data.valor : desconto.valor
-      });
-    }
+    this.validarDesconto({ ...desconto, ...data });
 
-    // Verificar duplicidade de descrição se mudou
     if (data.descricao && data.descricao !== desconto.descricao) {
-      const descontoExistente = await descontoRepository.buscarPorDescricao(data.descricao);
-      if (descontoExistente) {
-        throw new ApiError(400, 'Já existe um desconto com esta descrição');
-      }
+      const duplicado = await prisma.desconto.findFirst({
+        where: { descricao: data.descricao.trim(), empresaId: data.empresaId },
+      });
+      if (duplicado) throw new ApiError(400, 'Já existe um desconto com esta descrição');
     }
 
-    const dadosAtualizacao = {
-      descricao: data.descricao ? data.descricao.trim() : undefined,
-      tipo: data.tipo,
-      valor: data.valor !== undefined ? Number(data.valor) : undefined,
-      status: data.status
-    };
-
-    // Remove campos undefined
-    Object.keys(dadosAtualizacao).forEach(key => 
-      dadosAtualizacao[key] === undefined && delete dadosAtualizacao[key]
-    );
-
-    return await descontoRepository.atualizar(id, dadosAtualizacao);
+    return await prisma.desconto.update({
+      where: { id },
+      data: {
+        descricao: data.descricao?.trim() ?? desconto.descricao,
+        tipo: data.tipo ?? desconto.tipo,
+        valor: data.valor !== undefined ? Number(data.valor) : desconto.valor,
+        status: data.status ?? desconto.status,
+      },
+    });
   }
 
-  async deletar(id) {
-    const desconto = await descontoRepository.buscarPorId(id);
-
-    if (!desconto) {
-      throw new ApiError(404, 'Desconto não encontrado');
-    }
-
-    return await descontoRepository.deletar(id);
+  async deletar(id, empresaId) {
+    const desconto = await prisma.desconto.findFirst({ where: { id, empresaId } });
+    if (!desconto) throw new ApiError(404, 'Desconto não encontrado');
+    return await prisma.desconto.delete({ where: { id } });
   }
 
-  /**
-   * Calcula o valor do desconto sobre um valor base
-   */
-  async calcularDesconto(id, valorBase) {
-    const desconto = await this.buscarPorId(id);
+  async calcularDesconto(id, valorBase, empresaId) {
+    const desconto = await this.buscarPorId(id, empresaId);
+    if (desconto.status !== 'ATIVO') throw new ApiError(400, 'Desconto inativo');
 
-    if (desconto.status !== 'ATIVO') {
-      throw new ApiError(400, 'Desconto inativo');
-    }
-
-    let valorDesconto;
-
-    if (desconto.tipo === 'PERCENTUAL') {
-      valorDesconto = (valorBase * desconto.valor) / 100;
-    } else {
-      valorDesconto = desconto.valor;
-    }
+    const valorDesconto =
+      desconto.tipo === 'PERCENTUAL'
+        ? (valorBase * desconto.valor) / 100
+        : desconto.valor;
 
     return {
       desconto,
       valorBase,
       valorDesconto,
-      valorFinal: valorBase - valorDesconto
+      valorFinal: valorBase - valorDesconto,
     };
   }
 }

@@ -29,9 +29,17 @@ class TurmaRepository {
     return await prisma.turma.findUnique({ where: { id } });
   }
 
-  async buscarPorNome(nome) {
-    return await prisma.turma.findUnique({ where: { nome } });
-  }
+  async buscarPorNome(nome, empresaId) {
+  return await prisma.turma.findUnique({
+    where: {
+      empresaId_nome: {
+        empresaId,
+        nome,
+      },
+    },
+  });
+}
+
 
   async atualizar(id, data) {
     return await prisma.turma.update({ where: { id }, data });

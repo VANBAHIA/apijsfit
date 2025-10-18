@@ -101,7 +101,13 @@ class FuncionarioService {
    * 🆕 AGORA SUPORTA pessoaId OU dados completos da pessoa
    */
   async criarComPessoa(dadosCompletos) {
-    const { pessoa, funcionario } = dadosCompletos;
+    
+    const { pessoa, funcionario, empresaId } = dadosCompletos;
+
+    if (!empresaId) {
+      throw new ApiError(400, 'empresaId é obrigatório para criar funcionário');
+    }
+
 
     // 🆕 PASSO 1: Verificar se pessoaId foi fornecido
     let pessoaId = funcionario?.pessoaId;
@@ -155,22 +161,24 @@ class FuncionarioService {
     try {
       const matricula = await this._gerarProximaMatricula(prisma);
 
-      const dadosFuncionario = {
-        matricula,
-        pessoaId,
-        funcaoId: funcionario.funcaoId,
-        dataAdmissao: new Date(funcionario.dataAdmissao),
-        dataDemissao: funcionario.dataDemissao ? new Date(funcionario.dataDemissao) : null,
-        salario: funcionario.salario ? Number(funcionario.salario) : null,
-        situacao: funcionario.situacao || 'ATIVO'
-      };
+  const dadosFuncionario = {
+  matricula,
+  pessoaId,
+  funcaoId: funcionario.funcaoId,
+  dataAdmissao: new Date(funcionario.dataAdmissao),
+  dataDemissao: funcionario.dataDemissao ? new Date(funcionario.dataDemissao) : null,
+  salario: funcionario.salario ? Number(funcionario.salario) : null,
+  situacao: funcionario.situacao || 'ATIVO',
+  empresaId // ✅ ESSENCIAL
+};
+
 
       const funcionarioCriado = await prisma.funcionario.create({
         data: dadosFuncionario,
         include: {
           pessoa: {
             select: {
-              id: true,
+              id: true,            
               nome1: true,
               nome2: true,
               doc1: true,
@@ -242,7 +250,6 @@ class FuncionarioService {
           pessoa: {
             select: {
               id: true,
-
               nome1: true,
               nome2: true,
               doc1: true,
@@ -332,10 +339,16 @@ class FuncionarioService {
 
         if (funcionario) {
           const dadosFuncionario = {
+            matricula: funcionario.matricula,
+            pessoaId: funcionario.pessoaId,
             funcaoId: funcionario.funcaoId,
-            situacao: funcionario.situacao,
-            salario: funcionario.salario ? Number(funcionario.salario) : undefined
+            dataAdmissao: new Date(funcionario.dataAdmissao),
+            dataDemissao: funcionario.dataDemissao ? new Date(funcionario.dataDemissao) : null,
+            salario: funcionario.salario ? Number(funcionario.salario) : null,
+            situacao: funcionario.situacao || 'ATIVO',
+            empresaId: funcionario.empresaId
           };
+
 
           if (funcionario.dataAdmissao) {
             dadosFuncionario.dataAdmissao = new Date(funcionario.dataAdmissao);

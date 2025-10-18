@@ -1,3 +1,4 @@
+// src/repositories/matriculaRepository.js
 const prisma = require('../config/database');
 
 class MatriculaRepository {
@@ -8,15 +9,17 @@ class MatriculaRepository {
         aluno: { include: { pessoa: true } },
         plano: true,
         turma: true,
-        desconto: true
-      }
+        desconto: true,
+      },
     });
   }
 
   async buscarTodos(filtros = {}) {
-    const { situacao, alunoId, skip = 0, take = 10 } = filtros;
-    
-    const where = {};
+    const { situacao, alunoId, empresaId, skip = 0, take = 10 } = filtros;
+
+    if (!empresaId) throw new Error('empresaId é obrigatório em buscarTodos');
+
+    const where = { empresaId };
     if (situacao) where.situacao = situacao;
     if (alunoId) where.alunoId = alunoId;
 
@@ -28,58 +31,66 @@ class MatriculaRepository {
           aluno: { include: { pessoa: true } },
           plano: true,
           turma: true,
-          desconto: true
+          desconto: true,
         },
         skip: Number(skip),
         take: Number(take),
-        orderBy: { createdAt: 'desc' }
-      })
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
     return { total, matriculas };
   }
 
-  async buscarPorId(id) {
-    return await prisma.matricula.findUnique({
-      where: { id },
+  async buscarPorId(id, empresaId) {
+    if (!empresaId) throw new Error('empresaId é obrigatório em buscarPorId');
+
+    return await prisma.matricula.findFirst({
+      where: { id, empresaId },
       include: {
         aluno: { include: { pessoa: true } },
         plano: true,
         turma: true,
-        desconto: true
-      }
+        desconto: true,
+      },
     });
   }
 
-  async buscarPorCodigo(codigo) {
-    return await prisma.matricula.findUnique({ where: { codigo } });
+  async buscarPorCodigo(codigo, empresaId) {
+    if (!empresaId) throw new Error('empresaId é obrigatório em buscarPorCodigo');
+
+    return await prisma.matricula.findFirst({
+      where: { codigo, empresaId },
+    });
   }
 
   async atualizar(id, data) {
-    return await prisma.matricula.update({
-      where: { id },
+    if (!data.empresaId) throw new Error('empresaId é obrigatório em atualizar');
+
+    return await prisma.matricula.updateMany({
+      where: { id, empresaId: data.empresaId },
       data,
-      include: {
-        aluno: { include: { pessoa: true } },
-        plano: true,
-        turma: true,
-        desconto: true
-      }
     });
   }
 
-  async deletar(id) {
-    return await prisma.matricula.delete({ where: { id } });
+  async deletar(id, empresaId) {
+    if (!empresaId) throw new Error('empresaId é obrigatório em deletar');
+
+    return await prisma.matricula.deleteMany({
+      where: { id, empresaId },
+    });
   }
 
-  // Buscar matrículas ativas do aluno
-  async buscarAtivasPorAluno(alunoId) {
+  async buscarAtivasPorAluno(alunoId, empresaId) {
+    if (!empresaId) throw new Error('empresaId é obrigatório em buscarAtivasPorAluno');
+
     return await prisma.matricula.findMany({
-      where: { 
+      where: {
         alunoId,
-        situacao: 'ATIVA'
+        empresaId,
+        situacao: 'ATIVA',
       },
-      include: { plano: true, turma: true }
+      include: { plano: true, turma: true },
     });
   }
 }

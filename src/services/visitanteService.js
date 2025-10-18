@@ -4,89 +4,95 @@ const prisma = require('../config/database');
 const ApiError = require('../utils/apiError');
 
 class VisitanteService {
-    /**
-     * Criar novo visitante
-     */
-    async criar(dados) {
-        // Validação obrigatória apenas do nome
-        if (!dados.nome || dados.nome.trim() === '') {
-            throw new ApiError(400, 'Nome é obrigatório');
-        }
 
-        // Validação da data da visita
-        if (!dados.dataVisita) {
-            throw new ApiError(400, 'Data da visita é obrigatória');
-        }
+    // src/services/visitanteService.js
+async criar(dados) {
+  // Validação obrigatória
+  if (!dados.nome || dados.nome.trim() === '') {
+    throw new ApiError(400, 'Nome é obrigatório');
+  }
 
-        // ✅ Validar se funcionário existe (se informado)
-        if (dados.funcionarioId) {
-            const funcionario = await prisma.funcionario.findUnique({
-                where: { id: dados.funcionarioId },
-                select: { id: true, situacao: true }
-            });
+  if (!dados.dataVisita) {
+    throw new ApiError(400, 'Data da visita é obrigatória');
+  }
 
-            if (!funcionario) {
-                throw new ApiError(404, 'Funcionário não encontrado');
-            }
+  if (!dados.empresaId) {
+    throw new ApiError(400, 'empresaId é obrigatório');
+  }
 
-            if (funcionario.situacao !== 'ATIVO') {
-                throw new ApiError(400, 'Funcionário não está ativo');
-            }
-        }
+  // ✅ Validar se funcionário existe (se informado)
+  if (dados.funcionarioId) {
+    const funcionario = await prisma.funcionario.findUnique({
+      where: { id: dados.funcionarioId },
+      select: { id: true, situacao: true }
+    });
 
-        try {
-            const dadosVisitante = {
-                nome: dados.nome.trim().toUpperCase(),
-                endereco: dados.endereco?.trim() || null,
-                bairro: dados.bairro?.trim() || null,
-                cidade: dados.cidade?.trim() || null,
-                uf: dados.uf || null,
-                cep: dados.cep?.replace(/\D/g, '') || null,
-                telefone: dados.telefone?.replace(/\D/g, '') || null,
-                celular: dados.celular?.replace(/\D/g, '') || null,
-                email: dados.email?.toLowerCase().trim() || null,
-                sexo: dados.sexo || null,
-                dataNascimento: dados.dataNascimento ? new Date(dados.dataNascimento) : null,
-                observacoes: dados.observacoes?.trim() || null,
-                dataVisita: new Date(dados.dataVisita),
-                funcionarioId: dados.funcionarioId || null
-            };
-
-            const visitante = await prisma.visitante.create({
-                data: dadosVisitante,
-                include: {
-                    funcionario: {
-                        include: {
-                            pessoa: {
-                                select: {
-                                    nome1: true,
-                                    nome2: true
-                                }
-                            },
-                            funcao: {
-                                select: {
-                                    funcao: true
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            return visitante;
-        } catch (error) {
-            console.error('Erro ao criar visitante:', error);
-            throw new ApiError(500, `Erro ao criar visitante: ${error.message}`);
-        }
+    if (!funcionario) {
+      throw new ApiError(404, 'Funcionário não encontrado');
     }
+
+    if (funcionario.situacao !== 'ATIVO') {
+      throw new ApiError(400, 'Funcionário não está ativo');
+    }
+  }
+
+  try {
+    // ✅ Aqui declaramos a variável corretamente
+    const dadosVisitante = {
+      nome: dados.nome.trim().toUpperCase(),
+      endereco: dados.endereco?.trim() || null,
+      bairro: dados.bairro?.trim() || null,
+      cidade: dados.cidade?.trim() || null,
+      uf: dados.uf || null,
+      cep: dados.cep?.replace(/\D/g, '') || null,
+      telefone: dados.telefone?.replace(/\D/g, '') || null,
+      celular: dados.celular?.replace(/\D/g, '') || null,
+      email: dados.email?.toLowerCase().trim() || null,
+      sexo: dados.sexo || null,
+      dataNascimento: dados.dataNascimento ? new Date(dados.dataNascimento) : null,
+      observacoes: dados.observacoes?.trim() || null,
+      dataVisita: new Date(dados.dataVisita),
+      funcionarioId: dados.funcionarioId || null,
+      empresaId: dados.empresaId // ✅ incluído corretamente
+    };
+
+    // ✅ Agora sim, usamos a variável que existe
+    const visitante = await prisma.visitante.create({
+      data: dadosVisitante,
+      include: {
+        funcionario: {
+          include: {
+            pessoa: {
+              select: {
+                nome1: true,
+                nome2: true
+              }
+            },
+            funcao: {
+              select: {
+                funcao: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return visitante;
+  } catch (error) {
+    console.error('Erro ao criar visitante:', error);
+    throw new ApiError(500, `Erro ao criar visitante: ${error.message}`);
+  }
+}
+
 
     /**
      * Listar todos os visitantes com paginação e filtros
      */
     async listarTodos(filtros = {}) {
-        const { 
-            page = 1, 
-            limit = 10, 
+        const {
+            page = 1,
+            limit = 10,
             busca,
             dataInicio,
             dataFim,
@@ -95,7 +101,8 @@ class VisitanteService {
         } = filtros;
 
         const skip = (Number(page) - 1) * Number(limit);
-        const where = {};
+        const where = { empresaId: filtros.empresaId };
+
 
         // Filtro de busca por nome, telefone ou celular
         if (busca) {
@@ -177,7 +184,7 @@ class VisitanteService {
     async buscarPorId(id) {
         try {
             const visitante = await prisma.visitante.findUnique({
-                where: { id },
+                where: { id  },
                 include: {
                     funcionario: {
                         include: {
@@ -383,7 +390,7 @@ class VisitanteService {
 
             const funcionariosMap = new Map(
                 funcionarios.map(f => [
-                    f.id, 
+                    f.id,
                     `${f.pessoa.nome1}${f.pessoa.nome2 ? ' ' + f.pessoa.nome2 : ''}`
                 ])
             );
@@ -400,7 +407,7 @@ class VisitanteService {
                 })),
                 porFuncionario: porFuncionario.map(item => ({
                     funcionarioId: item.funcionarioId,
-                    funcionario: item.funcionarioId 
+                    funcionario: item.funcionarioId
                         ? funcionariosMap.get(item.funcionarioId) || 'Não encontrado'
                         : 'Não informado',
                     quantidade: item._count

@@ -23,7 +23,10 @@ class FuncionarioController {
       throw new ApiError(400, 'Dados da pessoa e do funcionário são obrigatórios');
     }
 
-    const funcionario = await funcionarioService.criarComPessoa(dadosCompletos);
+const funcionario = await funcionarioService.criarComPessoa({
+  ...dadosCompletos,
+  empresaId
+});
 
     res.status(201).json(
       new ApiResponse(201, funcionario, 'Funcionário criado com sucesso')

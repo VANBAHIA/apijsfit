@@ -194,116 +194,106 @@ class MatriculaService {
   /**
    * ✅ ATUALIZADO: Criar matrícula com geração automática de cobrança
    */
+
   async criar(data) {
-    // Validações
-    if (!data.alunoId) throw new ApiError(400, 'Aluno é obrigatório');
-    if (!data.planoId) throw new ApiError(400, 'Plano é obrigatório');
-    if (!data.dataInicio) throw new ApiError(400, 'Data de início é obrigatória');
+    return await prisma.$transaction(async (tx) => {
+      try {
+        // 🔹 1. Validação básica
+        if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+        if (!data.alunoId) throw new ApiError(400, 'alunoId é obrigatório');
+        if (!data.planoId) throw new ApiError(400, 'planoId é obrigatório');
 
-    // Verificar se aluno existe
-    const aluno = await alunoRepository.buscarPorId(data.alunoId);
-    if (!aluno) throw new ApiError(404, 'Aluno não encontrado');
+        // 🔹 2. Busca entidades relacionadas
+        const aluno = await alunoRepository.buscarPorId(data.alunoId, data.empresaId);
+        if (!aluno) throw new ApiError(404, 'Aluno não encontrado');
 
-    // Verificar se plano existe
-    const plano = await planoRepository.buscarPorId(data.planoId);
-    if (!plano) throw new ApiError(404, 'Plano não encontrado');
-    if (plano.status !== 'ATIVO') {
-      throw new ApiError(400, 'Plano inativo - não é possível criar matrícula');
-    }
+        const plano = await planoRepository.buscarPorId(data.planoId, data.empresaId);
+        if (!plano) throw new ApiError(404, 'Plano não encontrado');
 
-    // Verificar turma (se fornecida)
-    if (data.turmaId) {
-      const turma = await turmaRepository.buscarPorId(data.turmaId);
-      if (!turma) throw new ApiError(404, 'Turma não encontrada');
-    }
-
-    // Verificar desconto (se fornecido)
-    if (data.descontoId) {
-      const desconto = await descontoRepository.buscarPorId(data.descontoId);
-      if (!desconto) throw new ApiError(404, 'Desconto não encontrado');
-      if (desconto.status !== 'ATIVO') {
-        throw new ApiError(400, 'Desconto inativo - não pode ser aplicado');
-      }
-    }
-
-    try {
-      // ✅ TRANSAÇÃO: Criar matrícula + primeira cobrança atomicamente
-      const resultado = await prisma.$transaction(async (tx) => {
-
-        // 1️⃣ Gerar código da matrícula
-        const codigo = await this.gerarProximoCodigo();
-
-        // 2️⃣ Calcular data fim
-        const dataFim = this.calcularDataFim(data.dataInicio, plano);
-
-        // 3️⃣ Calcular valores
-        const valores = await this.calcularValores(data.planoId, data.descontoId);
-
-        // 4️⃣ Definir dia de vencimento
-        let diaVencimento = null;
-        if (plano.tipoCobranca === 'RECORRENTE') {
-          diaVencimento = data.diaVencimento || new Date(data.dataInicio).getDate();
+        let turma = null;
+        if (data.turmaId) {
+          turma = await turmaRepository.buscarPorId(data.turmaId, data.empresaId);
+          if (!turma) throw new ApiError(404, 'Turma não encontrada');
         }
 
-        // 5️⃣ Criar matrícula
-        const dadosMatricula = {
-          codigo,
+        let desconto = null;
+        if (data.descontoId) {
+          desconto = await descontoRepository.buscarPorId(data.descontoId, data.empresaId);
+          if (!desconto) throw new ApiError(404, 'Desconto não encontrado');
+        }
+
+        // 🔹 3. Geração automática do código da matrícula
+        const ultimaMatricula = await tx.matricula.findFirst({
+          where: { empresaId: data.empresaId },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        let codigoGerado = 'M00001';
+        if (ultimaMatricula?.codigo) {
+          const numero = parseInt(ultimaMatricula.codigo.replace('M', '')) + 1;
+          codigoGerado = 'M' + numero.toString().padStart(5, '0');
+        }
+
+        // 🔹 4. Cálculo da data de início e fim
+        const dataInicio = new Date(data.dataInicio);
+        let dataFim;
+
+        if (plano.tipoCobranca === 'RECORRENTE') {
+          dataFim = new Date('2099-12-31T00:00:00.000Z'); // recorrente = data simbólica
+        } else if (plano.numeroMeses && plano.numeroMeses > 0) {
+          dataFim = new Date(dataInicio);
+          dataFim.setMonth(dataFim.getMonth() + plano.numeroMeses);
+        } else if (plano.numeroDias && plano.numeroDias > 0) {
+          dataFim = new Date(dataInicio);
+          dataFim.setDate(dataFim.getDate() + plano.numeroDias);
+        } else {
+          dataFim = new Date('2099-12-31T00:00:00.000Z'); // fallback seguro
+        }
+
+        // 🔹 5. Montagem do objeto para criação
+        const novaMatricula = {
+          codigo: codigoGerado,
+          empresaId: data.empresaId,
           alunoId: data.alunoId,
           planoId: data.planoId,
           turmaId: data.turmaId || null,
           descontoId: data.descontoId || null,
-          dataInicio: new Date(data.dataInicio),
+          dataInicio,
           dataFim,
-          diaVencimento,
-          ...valores,
+          diaVencimento: data.diaVencimento || 5,
+          valorMatricula: data.valorMatricula || plano.valorMensalidade,
+          valorDesconto: data.valorDesconto || 0,
+          valorFinal:
+            data.valorFinal || (plano.valorMensalidade - (data.valorDesconto || 0)),
           situacao: data.situacao || 'ATIVA',
-          formaPagamento: data.formaPagamento || null,
+          formaPagamento: data.formaPagamento || 'DINHEIRO',
           parcelamento: data.parcelamento || 1,
-          observacoes: data.observacoes || null
+          observacoes: data.observacoes || null,
         };
 
+        // 🔹 6. Cria a matrícula
         const matricula = await tx.matricula.create({
-          data: dadosMatricula,
+          data: novaMatricula,
           include: {
             aluno: { include: { pessoa: true } },
             plano: true,
             turma: true,
-            desconto: true
-          }
+            desconto: true,
+          },
         });
 
-        console.log(`✅ [MATRÍCULA] Criada: ${matricula.codigo}`);
+        // 🔹 7. (Opcional) Criar conta a receber inicial se necessário
+        // await this.gerarContaReceber(tx, matricula);
 
-        // 6️⃣ Gerar primeira cobrança automaticamente
-        const primeiraCobranca = await this.gerarPrimeiraCobranca(
-          matricula,
-          plano,
-          data.dataInicio,
-          diaVencimento,
-          data.descontoId
-        );
-
-        return {
-          matricula,
-          primeiraCobranca
-        };
-      });
-
-      console.log('✅ [MATRÍCULA] Transação concluída com sucesso!');
-
-      return resultado;
-
-    } catch (error) {
-      console.error('❌ [MATRÍCULA] Erro na transação:', error);
-
-      if (error instanceof ApiError) {
-        throw error;
+        return matricula;
+      } catch (error) {
+        console.error('❌ [MATRÍCULA] Erro na transação:', error);
+        throw new ApiError(500, `Erro ao criar matrícula: ${error.message}`);
       }
 
-      throw new ApiError(500, `Erro ao criar matrícula: ${error.message}`);
-    }
-  }
 
+    });
+  }
   /**
    * Listar todas as matrículas
    */

@@ -87,49 +87,6 @@ type ControleAcesso {
   impressaoDigital2 String?
 }
 
-// ========== EMPRESA (BASE DO SISTEMA MULTI-TENANT) ==========
-model Empresa {
-  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
-  codigo             String  @unique
-  razaoSocial        String
-  nomeFantasia       String?
-  cnpj               String  @unique
-  inscricaoEstadual  String?
-  inscricaoMunicipal String?
-
-  endereco Json?
-  contatos Json?
-
-  responsavel String?
-  email       String?
-  site        String?
-
-  situacao String @default("ATIVO")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // ✅ RELAÇÕES COM TODAS AS ENTIDADES
-  licencas       Licenca[]
-  usuarios       Usuario[]
-  pessoas        Pessoa[]
-  locais         Local[]
-  funcoes        Funcao[]
-  planos         Plano[]
-  descontos      Desconto[]
-  turmas         Turma[]
-  alunos         Aluno[]
-  funcionarios   Funcionario[]
-  matriculas     Matricula[]
-  frequencias    Frequencia[]
-  visitantes     Visitante[]
-  contasPagar    ContaPagar[]
-  contasReceber  ContaReceber[]
-  caixas         Caixa[]
-
-  @@map("empresas")
-}
-
 // ========== LICENÇAS ==========
 model Licenca {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
@@ -313,7 +270,8 @@ model Turma {
 
   status     String      @default("ATIVO")
   matriculas Matricula[]
-
+  planos      Json[]    
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -637,4 +595,101 @@ model User {
   updatedAt DateTime  @updatedAt
 
   @@map("users")
+}
+
+model Equipamento {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  codigo    String   // EQ00001, EQ00002, etc.
+  nome      String
+  empresaId String  @db.ObjectId
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([codigo, empresaId])
+  @@index([empresaId])
+  @@index([codigo])
+  @@map("equipamentos")
+}
+
+model grupoExercicio {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  codigo    String
+  nome      String
+  empresaId String   @db.ObjectId
+  empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  exercicios exercicio[]  // 👈 ADICIONE ESTA LINHA
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([codigo, empresaId])
+  @@index([empresaId])
+  @@index([codigo])
+  @@map("grupoExercicio")
+}
+
+
+model Empresa {
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  codigo             String  @unique
+  razaoSocial        String
+  nomeFantasia       String?
+  cnpj               String  @unique
+  inscricaoEstadual  String?
+  inscricaoMunicipal String?
+
+  endereco Json?
+  contatos Json?
+
+  responsavel String?
+  email       String?
+  site        String?
+
+  situacao String @default("ATIVO")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  licencas       Licenca[]
+  usuarios       Usuario[]
+  pessoas        Pessoa[]
+  locais         Local[]
+  funcoes        Funcao[]
+  planos         Plano[]
+  descontos      Desconto[]
+  turmas         Turma[]
+  alunos         Aluno[]
+  funcionarios   Funcionario[]
+  matriculas     Matricula[]
+  frequencias    Frequencia[]
+  visitantes     Visitante[]
+  contasPagar    ContaPagar[]
+  contasReceber  ContaReceber[]
+  caixas         Caixa[]
+  equipamentos   Equipamento[]
+  grupoExercicio grupoExercicio[]
+  exercicios     exercicio[]    // 👈 ADICIONE ESTA LINHA
+
+  @@map("empresas")
+}
+
+
+// --- Novo model: exercicio ---
+model exercicio {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  nome       String
+  descricao  String?
+  musculos   String[]      // array de músculos (ex: ["Peito","Triceps"])
+  empresaId  String   @db.ObjectId
+  empresa    Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  grupoId    String?  @db.ObjectId
+  grupo      grupoExercicio? @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  imagemUrl  String?          // URL do gif/arquivo de imagem
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([empresaId])
+  @@index([grupoId])
+  @@map("exercicios")
 }

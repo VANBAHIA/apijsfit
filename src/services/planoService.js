@@ -66,44 +66,96 @@ class PlanoService {
     }
   }
 
-  async criar(data) {
-    // Validar dados
-    this.validarPlano(data);
 
-    // Gerar código automaticamente se não fornecido
-    if (!data.codigo) {
-      data.codigo = await this.gerarProximoCodigo();
-    }
+async criar(data) {
+  if (!data.empresaId) {
+    throw new ApiError(400, 'empresaId é obrigatório');
+  }
 
-    // Validar duplicidade de código
-    const planoExistente = await planoRepository.buscarPorCodigo(data.codigo);
-    if (planoExistente) {
-      throw new ApiError(400, 'Código já cadastrado');
-    }
+  this.validarPlano(data);
 
-    // Limpar campos não utilizados
-    if (data.periodicidade !== 'MESES') {
-      data.numeroMeses = null;
-    }
-    if (data.periodicidade !== 'DIAS') {
-      data.numeroDias = null;
-    }
+  if (!data.codigo) {
+    data.codigo = await this.gerarProximoCodigo();
+  }
 
-    return await planoRepository.criar({
+  const planoExistente = await prisma.plano.findFirst({
+    where: { codigo: data.codigo, empresaId: data.empresaId },
+  });
+
+  if (planoExistente) {
+    throw new ApiError(400, 'Código já cadastrado nesta empresa');
+  }
+
+  if (data.periodicidade !== 'MESES') data.numeroMeses = null;
+  if (data.periodicidade !== 'DIAS') data.numeroDias = null;
+
+  return await prisma.plano.create({
+    data: {
       codigo: data.codigo,
       nome: data.nome,
       periodicidade: data.periodicidade,
-      numeroMeses: data.numeroMeses || null,
-      numeroDias: data.numeroDias || null,
+      numeroMeses: data.numeroMeses,
+      numeroDias: data.numeroDias,
       valorMensalidade: data.valorMensalidade,
+      tipoCobranca: data.tipoCobranca,
       status: data.status || 'ATIVO',
-      descricao: data.descricao || null
-    });
-  }
+      descricao: data.descricao || null,
+      empresaId: data.empresaId, // ✅ essencial
+    },
+  });
+}
 
-  async buscarTodos(filtros) {
-    return await planoRepository.buscarTodos(filtros);
-  }
+async buscarTodos(filtros) {
+  const { empresaId, status, skip = 0, take = 10 } = filtros;
+  if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+
+  const where = { empresaId };
+  if (status) where.status = status;
+
+  const [total, planos] = await Promise.all([
+    prisma.plano.count({ where }),
+    prisma.plano.findMany({
+      where,
+      skip: Number(skip),
+      take: Number(take),
+      orderBy: { codigo: 'asc' },
+    }),
+  ]);
+
+  return { total, planos };
+}
+
+async buscarPorId(id, empresaId) {
+  const plano = await prisma.plano.findFirst({
+    where: { id, empresaId },
+  });
+  if (!plano) throw new ApiError(404, 'Plano não encontrado para esta empresa');
+  return plano;
+}
+
+async atualizar(id, data) {
+  const plano = await prisma.plano.findFirst({
+    where: { id, empresaId: data.empresaId },
+  });
+  if (!plano) throw new ApiError(404, 'Plano não encontrado');
+
+  this.validarPlano({ ...plano, ...data });
+
+  return await prisma.plano.update({
+    where: { id },
+    data: {
+      ...data,
+      empresaId: data.empresaId,
+    },
+  });
+}
+
+async deletar(id, empresaId) {
+  const plano = await prisma.plano.findFirst({ where: { id, empresaId } });
+  if (!plano) throw new ApiError(404, 'Plano não encontrado para esta empresa');
+  return await prisma.plano.delete({ where: { id } });
+}
+
 
   async buscarPorId(id) {
     const plano = await planoRepository.buscarPorId(id);

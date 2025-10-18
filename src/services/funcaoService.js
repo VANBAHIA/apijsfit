@@ -1,65 +1,81 @@
-const funcaoRepository = require('../repositories/funcaoRepository');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 const ApiError = require('../utils/apiError');
 
 class FuncaoService {
   async criar(data) {
-    // Validação básica
-    if (!data.funcao) {
-      throw new ApiError(400, 'Nome da função é obrigatório');
-    }
+    if (!data.funcao) throw new ApiError(400, 'Nome da função é obrigatório');
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-    // Verificar duplicidade
-    const funcaoExistente = await funcaoRepository.buscarPorNome(data.funcao);
-    if (funcaoExistente) {
-      throw new ApiError(400, 'Função já cadastrada');
-    }
+    const existente = await prisma.funcao.findFirst({
+      where: { funcao: data.funcao.trim(), empresaId: data.empresaId },
+    });
 
-    return await funcaoRepository.criar({
-      funcao: data.funcao,
-      status: data.status || 'ATIVO'
+    if (existente) throw new ApiError(400, 'Função já cadastrada nesta empresa');
+
+    return await prisma.funcao.create({
+      data: {
+        funcao: data.funcao.trim(),
+        status: data.status || 'ATIVO',
+        empresaId: data.empresaId,
+      },
     });
   }
 
-  async buscarTodos(filtros) {
-    return await funcaoRepository.buscarTodos(filtros);
+  async buscarTodos(filtros = {}) {
+    const { empresaId, status, skip = 0, take = 10 } = filtros;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+
+    const where = { empresaId };
+    if (status) where.status = status;
+
+    const [total, funcoes] = await Promise.all([
+      prisma.funcao.count({ where }),
+      prisma.funcao.findMany({
+        where,
+        skip: Number(skip),
+        take: Number(take),
+        orderBy: { funcao: 'asc' },
+      }),
+    ]);
+
+    return { total, funcoes };
   }
 
-  async buscarPorId(id) {
-    const funcao = await funcaoRepository.buscarPorId(id);
-
-    if (!funcao) {
-      throw new ApiError(404, 'Função não encontrada');
-    }
-
+  async buscarPorId(id, empresaId) {
+    const funcao = await prisma.funcao.findFirst({ where: { id, empresaId } });
+    if (!funcao) throw new ApiError(404, 'Função não encontrada para esta empresa');
     return funcao;
   }
 
   async atualizar(id, data) {
-    const funcao = await funcaoRepository.buscarPorId(id);
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-    if (!funcao) {
-      throw new ApiError(404, 'Função não encontrada');
-    }
+    const funcao = await prisma.funcao.findFirst({
+      where: { id, empresaId: data.empresaId },
+    });
+    if (!funcao) throw new ApiError(404, 'Função não encontrada');
 
-    // Verificar duplicidade se nome mudou
     if (data.funcao && data.funcao !== funcao.funcao) {
-      const funcaoExistente = await funcaoRepository.buscarPorNome(data.funcao);
-      if (funcaoExistente) {
-        throw new ApiError(400, 'Função já cadastrada');
-      }
+      const duplicada = await prisma.funcao.findFirst({
+        where: { funcao: data.funcao.trim(), empresaId: data.empresaId },
+      });
+      if (duplicada) throw new ApiError(400, 'Já existe uma função com este nome nesta empresa');
     }
 
-    return await funcaoRepository.atualizar(id, data);
+    return await prisma.funcao.update({
+      where: { id },
+      data: {
+        funcao: data.funcao?.trim() ?? funcao.funcao,
+        status: data.status ?? funcao.status,
+      },
+    });
   }
 
-  async deletar(id) {
-    const funcao = await funcaoRepository.buscarPorId(id);
-
-    if (!funcao) {
-      throw new ApiError(404, 'Função não encontrada');
-    }
-
-    return await funcaoRepository.deletar(id);
+  async deletar(id, empresaId) {
+    const funcao = await prisma.funcao.findFirst({ where: { id, empresaId } });
+    if (!funcao) throw new ApiError(404, 'Função não encontrada');
+    return await prisma.funcao.delete({ where: { id } });
   }
 }
 

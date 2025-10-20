@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 
-
 // Importar todas as rotas
 const pessoaRoutes = require('./pessoaRoutes');
 const alunoRoutes = require('./alunoRoutes');
@@ -26,10 +25,7 @@ const relatorioFinanceiroRoutes = require('./relatorioFinanceiroRoutes');
 const equipamentoRoutes = require('./equipamentoRoutes');
 const grupoExercicioRoutes = require('./grupoExerciciosRoutes');
 const exercicioRoutes = require('./exerciciosRoutes');
-
-
-
-
+const exercicioEquipamentoRoutes = require('./exercicioEquipamentoRoutes'); // ✅ NOVO
 
 // Registrar rotas
 router.use('/pessoas', pessoaRoutes);
@@ -37,7 +33,7 @@ router.use('/alunos', alunoRoutes);
 router.use('/users', userRoutes);
 router.use('/locais', localRoutes);
 router.use('/planos', planoRoutes);
-router.use('/funcoes', funcaoRoutes)
+router.use('/funcoes', funcaoRoutes);
 router.use('/descontos', descontoRoutes);
 router.use('/turmas', turmaRoutes);
 router.use('/funcionarios', funcionarioRoutes);
@@ -53,15 +49,9 @@ router.use('/visitantes', visitanteRoutes);
 router.use('/frequencias', frequenciaRoutes);
 router.use('/relatorios/financeiro', relatorioFinanceiroRoutes);
 router.use('/equipamentos', equipamentoRoutes);
-router.use('/gruposexercicio', grupoExercicioRoutes); 
-router.use('/exercicios', exercicioRoutes); 
-
-
-
-
-
-
-
+router.use('/gruposexercicio', grupoExercicioRoutes);
+router.use('/exercicios', exercicioRoutes);
+router.use('/exercicio-equipamento', exercicioEquipamentoRoutes); // ✅ NOVO
 
 // Rota de health check
 router.get('/health', (req, res) => {
@@ -85,16 +75,16 @@ router.get('/health', (req, res) => {
       contaPagar: '/api/contas-pagar',
       caixas: '/api/caixas',
       empresas: '/api/empresas',
-      licensas: '/api/licensas',
+      licencas: '/api/licencas',
       usuarios: '/api/usuarios',
       jobs: '/api/jobs',
       visitantes: '/api/visitantes',
-      frequencias: 'api/frequencias',
-      relatorioFinanceiroRoutes: 'api/relatorioFinanceiroRoutes',
+      frequencias: '/api/frequencias',
+      relatorioFinanceiro: '/api/relatorios/financeiro',
       equipamentos: '/api/equipamentos',
       grupoExercicios: '/api/gruposexercicio',
-      Exercicios: '/api/exercicios',
-      
+      exercicios: '/api/exercicios',
+      exercicioEquipamento: '/api/exercicio-equipamento' // ✅ NOVO
     }
   });
 });
@@ -120,17 +110,20 @@ router.get('/', (req, res) => {
       { path: '/api/contas-pagar', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/caixas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/empresas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/licensas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/licencas', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/usuarios', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/jobs', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/visitantes', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/frequencias', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/relatorioFinanceiroRoutes', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/relatorios/financeiro', methods: ['GET'] },
       { path: '/api/equipamentos', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/gruposexercicio', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/exercicios', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
-
-
+      { path: '/api/exercicios', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { 
+        path: '/api/exercicio-equipamento', 
+        methods: ['POST', 'GET', 'PATCH', 'DELETE'],
+        description: 'Gerenciar vínculo entre Exercícios e Equipamentos'
+      } // ✅ NOVO
     ]
   });
 });

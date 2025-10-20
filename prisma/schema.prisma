@@ -604,28 +604,14 @@ model User {
   @@map("users")
 }
 
-model Equipamento {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  codigo    String   // EQ00001, EQ00002, etc.
-  nome      String
-  empresaId String  @db.ObjectId
-  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@unique([codigo, empresaId])
-  @@index([empresaId])
-  @@index([codigo])
-  @@map("equipamentos")
-}
-
-model grupoExercicio {
+model GrupoExercicio {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   codigo    String
   nome      String
   empresaId String   @db.ObjectId
   empresa   Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  exercicios exercicio[]  // 👈 ADICIONE ESTA LINHA
+  exercicios Exercicio[]  // 👈 ADICIONE ESTA LINHA
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -675,28 +661,68 @@ model Empresa {
   contasReceber  ContaReceber[]
   caixas         Caixa[]
   equipamentos   Equipamento[]
-  grupoExercicio grupoExercicio[]
-  exercicios     exercicio[]    // 👈 ADICIONE ESTA LINHA
+  grupoExercicio GrupoExercicio[]
+  exercicios     Exercicio[]    // 👈 ADICIONE ESTA LINHA
 
   @@map("empresas")
 }
 
+// --- Novo model: Exercicio ---
+model Exercicio {
+  id           String                 @id @default(auto()) @map("_id") @db.ObjectId
+  nome         String
+  descricao    String?
+  musculos     String[]               // array de músculos (ex: ["Peito", "Triceps"])
+  empresaId    String                 @db.ObjectId
+  empresa      Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  grupoId      String?                @db.ObjectId
+  grupo        GrupoExercicio?        @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  imagemUrl    String?                // URL do gif/arquivo de imagem
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
 
-// --- Novo model: exercicio ---
-model exercicio {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  nome       String
-  descricao  String?
-  musculos   String[]      // array de músculos (ex: ["Peito","Triceps"])
-  empresaId  String   @db.ObjectId
-  empresa    Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  grupoId    String?  @db.ObjectId
-  grupo      grupoExercicio? @relation(fields: [grupoId], references: [id], onDelete: SetNull)
-  imagemUrl  String?          // URL do gif/arquivo de imagem
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  equipamentos ExercicioEquipamento[] @relation("ExercicioEquipamentos")
 
   @@index([empresaId])
   @@index([grupoId])
   @@map("exercicios")
+}
+
+// --- Model: Equipamento ---
+model Equipamento {
+  id          String                 @id @default(auto()) @map("_id") @db.ObjectId
+  codigo      String                 // EQ00001, EQ00002, etc.
+  nome        String
+  empresaId   String                 @db.ObjectId
+  empresa     Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  exercicios  ExercicioEquipamento[] @relation("ExercicioEquipamentos")
+
+  @@unique([codigo, empresaId])
+  @@index([empresaId])
+  @@index([codigo])
+  @@map("equipamentos")
+}
+
+// --- Model intermediário: ExercicioEquipamento ---
+model ExercicioEquipamento {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  exercicioId    String      @db.ObjectId
+  exercicio      Exercicio   @relation("ExercicioEquipamentos", fields: [exercicioId], references: [id], onDelete: Cascade)
+  equipamentoId  String      @db.ObjectId
+  equipamento    Equipamento @relation("ExercicioEquipamentos", fields: [equipamentoId], references: [id], onDelete: Cascade)
+
+  // Metadados opcionais
+  descricaoUso   String?     // Ex: "Usar com cuidado - ajustar altura"
+  disponivel     Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Índices e unicidade
+  @@unique([exercicioId, equipamentoId])
+  @@index([exercicioId])
+  @@index([equipamentoId])
+  @@map("exercicio_equipamentos")
 }

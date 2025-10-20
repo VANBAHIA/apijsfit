@@ -12,6 +12,7 @@ export const MODULOS_SISTEMA = {
   TURMAS: 'turmas',
   FREQUENCIA: 'frequencia',
   EQUIPAMENTOS: 'equipamentos',
+  EXERCICIOS_EQUIPAMENTOS: 'exercicioEquipamentos',
   // ========== CADASTROS ==========
   PLANOS: 'planos',
   GRUPOS_EXERCICIOS: 'gruposexercicio',
@@ -19,6 +20,7 @@ export const MODULOS_SISTEMA = {
   DESCONTOS: 'descontos',
   LOCAIS: 'locais',
   FUNCOES: 'funcoes',
+
 
 
 
@@ -165,6 +167,8 @@ export const TEMPLATES_PERFIS = {
         editar: true,
         excluir: true
       },
+
+
       funcoes: {
         acessar: true,
         criar: true,
@@ -203,7 +207,20 @@ export const TEMPLATES_PERFIS = {
         excluir: true,
         gerenciarManutencao: true
       },
-
+      exercicioEquipamentos: {
+        acessar: true,
+        vincular: true,
+        desvincular: true,
+        editar: true,
+        visualizar: true
+      },
+      exercicioEquipamentos: {
+        acessar: false,
+        vincular: false,
+        desvincular: false,
+        editar: false,
+        visualizar: false
+      },
       // === FINANCEIRO ===
       mensalidades: {
         acessar: true,
@@ -419,6 +436,13 @@ export const TEMPLATES_PERFIS = {
         editar: true,
         excluir: true,
         gerenciarManutencao: true
+      },
+      exercicioEquipamentos: {
+        acessar: true,
+        vincular: true,
+        desvincular: true,
+        editar: true,
+        visualizar: true
       },
 
       // === FINANCEIRO ===
@@ -637,6 +661,13 @@ export const TEMPLATES_PERFIS = {
         excluir: false,
         gerenciarManutencao: true
       },
+      exercicioEquipamentos: {
+        acessar: true,
+        vincular: true,
+        desvincular: true,
+        editar: true,
+        visualizar: true
+      },
 
       // === FINANCEIRO ===
       mensalidades: {
@@ -838,6 +869,13 @@ export const TEMPLATES_PERFIS = {
         excluir: false,
         gerenciarManutencao: false
       },
+      exercicioEquipamentos: {
+        acessar: false,
+        vincular: false,
+        desvincular: false,
+        editar: false,
+        visualizar: false
+      },
 
       // === FINANCEIRO ===
       mensalidades: {
@@ -1032,6 +1070,13 @@ export const TEMPLATES_PERFIS = {
         editar: false,
         excluir: false,
         gerenciarManutencao: false
+      },
+      exercicioEquipamentos: {
+        acessar: false,
+        vincular: false,
+        desvincular: false,
+        editar: false,
+        visualizar: false
       },
 
       // === FINANCEIRO ===

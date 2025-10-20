@@ -13,7 +13,17 @@ const ApiError = require('./utils/apiError');
 const jobScheduler = require('./jobs/scheduler');
 
 const app = express();
+const path = require('path');
+
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000'], // Adicione seus domínios
+  credentials: true
+}));
+
 const PORT = process.env.PORT || 3000;
+
+// ✅ Agora servindo a pasta public fora do /src
+app.use('/imagens', express.static(path.join(__dirname, '../public/imagens')));
 
 // Middlewares de segurança e otimização
 app.use(helmet());
@@ -43,7 +53,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📝 Ambiente: ${process.env.NODE_ENV}`);
   console.log(`🔗 URL: http://localhost:${PORT}`);
-  
+
   // ✅ INICIAR JOBS AGENDADOS
   jobScheduler.iniciar();
 });

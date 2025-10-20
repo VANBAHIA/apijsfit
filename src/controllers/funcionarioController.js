@@ -8,30 +8,33 @@ class FuncionarioController {
    * Cria um novo funcionário com sua pessoa em transação atômica
    * @route POST /api/funcionarios
    */
+
   criarComPessoa = asyncHandler(async (req, res) => {
-    const dadosCompletos = req.body;
-    const empresaId = req.empresaId;
+const dadosCompletos = req.body;
+const empresaId = req.empresaId; // vem do middleware
 
-    console.log('📋 Controller recebeu:', {
-      empresaId,
-      pessoaNome: dadosCompletos.pessoa?.nome1,
-      alunoSenha: dadosCompletos.aluno?.controleAcesso?.senha ? '***' : 'AUSENTE'
-    });
+console.log('📋 Controller recebeu:', {
 
-    // Validação básica da estrutura
-    if (!dadosCompletos.pessoa || !dadosCompletos.funcionario) {
-      throw new ApiError(400, 'Dados da pessoa e do funcionário são obrigatórios');
-    }
-
-const funcionario = await funcionarioService.criarComPessoa({
-  ...dadosCompletos,
-  empresaId
+  empresaId,
+  pessoaNome: dadosCompletos.pessoa?.nome1,
+  funcionarioMatricula: dadosCompletos.funcionario?.matricula,
+  doc1: dadosCompletos.pessoa?.doc1
 });
 
-    res.status(201).json(
-      new ApiResponse(201, funcionario, 'Funcionário criado com sucesso')
-    );
-  });
+if (!dadosCompletos.pessoa || !dadosCompletos.funcionario) {
+  throw new ApiError(400, 'Dados da pessoa e do funcionário são obrigatórios');
+}
+
+const funcionario = await funcionarioService.criar(dadosCompletos, empresaId);
+
+res.status(201).json(
+  new ApiResponse(201, funcionario, 'Funcionário criado com sucesso')
+);
+
+
+});
+
+
 
   /**
    * Lista todos os funcionários com paginação e filtros

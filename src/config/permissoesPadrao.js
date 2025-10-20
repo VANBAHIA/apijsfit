@@ -1,32 +1,38 @@
 
 export const MODULOS_SISTEMA = {
-  // ========== CONTROLE ==========
+  // ========== PESSOAS ==========
   ALUNOS: 'alunos',
   FUNCIONARIOS: 'funcionarios',
+
+  VISITANTES: 'visitantes',
+  INSTRUTORES: 'instrutores',
+
+  // ========== OPERACIONAL ==========
   MATRICULAS: 'matriculas',
   TURMAS: 'turmas',
   FREQUENCIA: 'frequencia',
-  VISITANTES: 'visitantes',
-  INSTRUTORES: 'instrutores',
-  
-  // ========== CADASTROS AUXILIARES ==========
+  EQUIPAMENTOS: 'equipamentos',
+  // ========== CADASTROS ==========
+  PLANOS: 'planos',
+  GRUPOS_EXERCICIOS: 'gruposexercicio',
+  EXERCICIOS: 'exercicios',
+  DESCONTOS: 'descontos',
   LOCAIS: 'locais',
   FUNCOES: 'funcoes',
-  PLANOS: 'planos',
-  DESCONTOS: 'descontos',
-  MODALIDADES: 'modalidades',
-  EQUIPAMENTOS: 'equipamentos',
-  
+
+
+
+
   // ========== FINANCEIRO ==========
   MENSALIDADES: 'mensalidades',
   CONTAS_PAGAR: 'contasPagar',
   CONTAS_RECEBER: 'contasReceber',
   CAIXA: 'caixa',
-  
+
   // ========== RELATÓRIOS ==========
   RELATORIO_FREQUENCIA: 'relatorioFrequencia',
   RELATORIO_FINANCEIRO: 'relatorioFinanceiro',
-  
+
   // ========== CONFIGURAÇÕES ==========
   DADOS_ACADEMIA: 'dadosAcademia',
   USUARIOS: 'usuarios',
@@ -53,31 +59,31 @@ export const ACOES_ESPECIAIS = {
   CANCELAR_QUALQUER_MATRICULA: 'CANCELAR_QUALQUER_MATRICULA',
   ESTORNAR_PAGAMENTO: 'ESTORNAR_PAGAMENTO',
   EDITAR_VALOR_MATRICULA: 'EDITAR_VALOR_MATRICULA',
-  
+
   // Caixa
   ABRIR_CAIXA: 'ABRIR_CAIXA',
   FECHAR_CAIXA: 'FECHAR_CAIXA',
   REABRIR_CAIXA: 'REABRIR_CAIXA',
   EDITAR_MOVIMENTO_CAIXA: 'EDITAR_MOVIMENTO_CAIXA',
   EXCLUIR_MOVIMENTO_CAIXA: 'EXCLUIR_MOVIMENTO_CAIXA',
-  
+
   // RH e Salários
   VISUALIZAR_SALARIOS: 'VISUALIZAR_SALARIOS',
   EDITAR_SALARIOS: 'EDITAR_SALARIOS',
   PROCESSAR_FOLHA: 'PROCESSAR_FOLHA',
-  
+
   // Relatórios
   GERAR_RELATORIOS_AVANCADOS: 'GERAR_RELATORIOS_AVANCADOS',
   EXPORTAR_DADOS_COMPLETOS: 'EXPORTAR_DADOS_COMPLETOS',
   ACESSAR_DASHBOARD_GERENCIAL: 'ACESSAR_DASHBOARD_GERENCIAL',
-  
+
   // Sistema
   EDITAR_EMPRESA: 'EDITAR_EMPRESA',
   GERENCIAR_USUARIOS: 'GERENCIAR_USUARIOS',
   GERENCIAR_LICENCAS: 'GERENCIAR_LICENCAS',
   ACESSAR_LOGS_SISTEMA: 'ACESSAR_LOGS_SISTEMA',
   CONFIGURAR_SISTEMA: 'CONFIGURAR_SISTEMA',
-  
+
   // Outros
   ALTERAR_DATA_RETROATIVA: 'ALTERAR_DATA_RETROATIVA',
   EDITAR_DADOS_SENSÍVEIS: 'EDITAR_DADOS_SENSÍVEIS'
@@ -103,15 +109,15 @@ export const TEMPLATES_PERFIS = {
         criar: true,
         editar: true,
         excluir: true,
-        demitir: true, 
+        demitir: true,
         reativar: true,
         exportar: true,
         visualizarSalarios: true
       },
       matriculas: {
-        acessar: true, 
+        acessar: true,
         inativar: true,
-reativar: true,
+        reativar: true,
         gerarCobr: false,
         criar: true,
         editar: true,
@@ -151,7 +157,7 @@ reativar: true,
         excluir: true,
         gerenciarAgenda: true
       },
-      
+
       // === CADASTROS AUXILIARES ===
       locais: {
         acessar: true,
@@ -178,7 +184,13 @@ reativar: true,
         editar: true,
         excluir: true
       },
-      modalidades: {
+      gruposexercicio: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      exercicios: {
         acessar: true,
         criar: true,
         editar: true,
@@ -191,7 +203,7 @@ reativar: true,
         excluir: true,
         gerenciarManutencao: true
       },
-      
+
       // === FINANCEIRO ===
       mensalidades: {
         acessar: true,
@@ -227,7 +239,7 @@ reativar: true,
         excluirMovimento: true,
         exportar: true
       },
-      
+
       // === RELATÓRIOS ===
       relatorioFrequencia: {
         acessar: true,
@@ -242,7 +254,7 @@ reativar: true,
         imprimir: true,
         dashboardGerencial: true
       },
-      
+
       // === CONFIGURAÇÕES ===
       dadosAcademia: {
         acessar: true,
@@ -314,15 +326,15 @@ reativar: true,
         criar: true,
         editar: true,
         excluir: true,
-        demitir: true, 
+        demitir: true,
         reativar: true,
         exportar: true,
         visualizarSalarios: true
       },
       matriculas: {
-        acessar: true, 
+        acessar: true,
         inativar: true,
-reativar: true,
+        reativar: true,
         gerarCobr: false,
         criar: true,
         editar: true,
@@ -362,7 +374,7 @@ reativar: true,
         excluir: true,
         gerenciarAgenda: true
       },
-      
+
       // === CADASTROS AUXILIARES ===
       locais: {
         acessar: true,
@@ -389,7 +401,13 @@ reativar: true,
         editar: true,
         excluir: true
       },
-      modalidades: {
+      gruposexercicio: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      exercicios: {
         acessar: true,
         criar: true,
         editar: true,
@@ -402,7 +420,7 @@ reativar: true,
         excluir: true,
         gerenciarManutencao: true
       },
-      
+
       // === FINANCEIRO ===
       mensalidades: {
         acessar: true,
@@ -438,7 +456,7 @@ reativar: true,
         excluirMovimento: true,
         exportar: true
       },
-      
+
       // === RELATÓRIOS ===
       relatorioFrequencia: {
         acessar: true,
@@ -453,7 +471,7 @@ reativar: true,
         imprimir: true,
         dashboardGerencial: true
       },
-      
+
       // === CONFIGURAÇÕES ===
       dadosAcademia: {
         acessar: true,
@@ -525,15 +543,15 @@ reativar: true,
         criar: false,
         editar: true,
         excluir: false,
-        demitir: true, 
+        demitir: true,
         reativar: true,
         exportar: false,
         visualizarSalarios: false
       },
       matriculas: {
-        acessar: true, 
+        acessar: true,
         inativar: true,
-reativar: true,
+        reativar: true,
         gerarCobr: false,
         criar: true,
         editar: true,
@@ -573,7 +591,7 @@ reativar: true,
         excluir: false,
         gerenciarAgenda: true
       },
-      
+
       // === CADASTROS AUXILIARES ===
       locais: {
         acessar: true,
@@ -600,11 +618,17 @@ reativar: true,
         editar: true,
         excluir: false
       },
-      modalidades: {
+      gruposexercicio: {
         acessar: true,
         criar: true,
         editar: true,
-        excluir: false
+        excluir: true
+      },
+      exercicios: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
       },
       equipamentos: {
         acessar: true,
@@ -613,7 +637,7 @@ reativar: true,
         excluir: false,
         gerenciarManutencao: true
       },
-      
+
       // === FINANCEIRO ===
       mensalidades: {
         acessar: true,
@@ -649,7 +673,7 @@ reativar: true,
         excluirMovimento: false,
         exportar: true
       },
-      
+
       // === RELATÓRIOS ===
       relatorioFrequencia: {
         acessar: true,
@@ -664,7 +688,7 @@ reativar: true,
         imprimir: true,
         dashboardGerencial: true
       },
-      
+
       // === CONFIGURAÇÕES ===
       dadosAcademia: {
         acessar: true,
@@ -720,15 +744,15 @@ reativar: true,
         criar: false,
         editar: false,
         excluir: false,
-        demitir: false, 
+        demitir: false,
         reativar: false,
         exportar: false,
         visualizarSalarios: false
       },
       matriculas: {
-        acessar: true, 
+        acessar: true,
         inativar: true,
-reativar: true,
+        reativar: true,
         gerarCobr: false,
         criar: false,
         editar: false,
@@ -768,7 +792,7 @@ reativar: true,
         excluir: false,
         gerenciarAgenda: false
       },
-      
+
       // === CADASTROS AUXILIARES ===
       locais: {
         acessar: true,
@@ -795,11 +819,17 @@ reativar: true,
         editar: false,
         excluir: false
       },
-      modalidades: {
+      gruposexercicio: {
         acessar: true,
-        criar: false,
-        editar: false,
-        excluir: false
+        criar: true,
+        editar: true,
+        excluir: true
+      },
+      exercicios: {
+        acessar: true,
+        criar: true,
+        editar: true,
+        excluir: true
       },
       equipamentos: {
         acessar: false,
@@ -808,7 +838,7 @@ reativar: true,
         excluir: false,
         gerenciarManutencao: false
       },
-      
+
       // === FINANCEIRO ===
       mensalidades: {
         acessar: false,
@@ -844,7 +874,7 @@ reativar: true,
         excluirMovimento: false,
         exportar: false
       },
-      
+
       // === RELATÓRIOS ===
       relatorioFrequencia: {
         acessar: true,
@@ -859,7 +889,7 @@ reativar: true,
         imprimir: false,
         dashboardGerencial: false
       },
-      
+
       // === CONFIGURAÇÕES ===
       dadosAcademia: {
         acessar: true,
@@ -909,15 +939,15 @@ reativar: true,
         criar: false,
         editar: false,
         excluir: false,
-        demitir: false, 
+        demitir: false,
         reativar: false,
         exportar: false,
         visualizarSalarios: false
       },
       matriculas: {
-        acessar: true, 
+        acessar: true,
         inativar: true,
-reativar: true,
+        reativar: true,
         gerarCobr: false,
         criar: false,
         editar: false,
@@ -957,7 +987,7 @@ reativar: true,
         excluir: false,
         gerenciarAgenda: false
       },
-      
+
       // === CADASTROS AUXILIARES ===
       locais: {
         acessar: true,
@@ -984,8 +1014,14 @@ reativar: true,
         editar: false,
         excluir: false
       },
-      modalidades: {
-        acessar: true,
+      gruposexercicio: {
+        acessar: false,
+        criar: false,
+        editar: false,
+        excluir: false
+      },
+      exercicios: {
+        acessar: false,
         criar: false,
         editar: false,
         excluir: false
@@ -997,7 +1033,7 @@ reativar: true,
         excluir: false,
         gerenciarManutencao: false
       },
-      
+
       // === FINANCEIRO ===
       mensalidades: {
         acessar: false,
@@ -1033,7 +1069,7 @@ reativar: true,
         excluirMovimento: false,
         exportar: false
       },
-      
+
       // === RELATÓRIOS ===
       relatorioFrequencia: {
         acessar: true,
@@ -1048,7 +1084,7 @@ reativar: true,
         imprimir: false,
         dashboardGerencial: false
       },
-      
+
       // === CONFIGURAÇÕES ===
       dadosAcademia: {
         acessar: true,
@@ -1120,7 +1156,7 @@ export const mesclarPermissoes = (permissoesAtuais, novoTemplate) => {
 export const perfilTemPermissao = (perfil, modulo, acao) => {
   const template = TEMPLATES_PERFIS[perfil];
   if (!template) return false;
-  
+
   return template.modulos?.[modulo]?.[acao] === true;
 };
 
@@ -1136,7 +1172,7 @@ export const LISTA_MODULOS = [
   { id: 'frequencia', nome: 'Frequência', categoria: 'Controle', icon: '📅' },
   { id: 'visitantes', nome: 'Visitantes', categoria: 'Controle', icon: '🚶' },
   { id: 'instrutores', nome: 'Instrutores', categoria: 'Controle', icon: '💪' },
-  
+
   // Cadastros Auxiliares
   { id: 'locais', nome: 'Locais', categoria: 'Cadastros', icon: '📍' },
   { id: 'funcoes', nome: 'Funções', categoria: 'Cadastros', icon: '💼' },
@@ -1144,17 +1180,17 @@ export const LISTA_MODULOS = [
   { id: 'descontos', nome: 'Descontos', categoria: 'Cadastros', icon: '💳' },
   { id: 'modalidades', nome: 'Modalidades', categoria: 'Cadastros', icon: '🏋️' },
   { id: 'equipamentos', nome: 'Equipamentos', categoria: 'Cadastros', icon: '🔧' },
-  
+
   // Financeiro
   { id: 'mensalidades', nome: 'Mensalidades', categoria: 'Financeiro', icon: '💵' },
   { id: 'contasPagar', nome: 'Contas a Pagar', categoria: 'Financeiro', icon: '📉' },
   { id: 'contasReceber', nome: 'Contas a Receber', categoria: 'Financeiro', icon: '📈' },
   { id: 'caixa', nome: 'Caixa', categoria: 'Financeiro', icon: '💰' },
-  
+
   // Relatórios
   { id: 'relatorioFrequencia', nome: 'Relatório de Frequência', categoria: 'Relatórios', icon: '📊' },
   { id: 'relatorioFinanceiro', nome: 'Relatório Financeiro', categoria: 'Relatórios', icon: '📊' },
-  
+
   // Configurações
   { id: 'dadosAcademia', nome: 'Dados da Academia', categoria: 'Configurações', icon: '🏢' },
   { id: 'usuarios', nome: 'Usuários', categoria: 'Configurações', icon: '👤' },

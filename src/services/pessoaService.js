@@ -9,16 +9,6 @@ class PessoaService {
   async criar(data) {
 
 
-
-    // ✅ Validar doc1 (CPF/CNPJ) se fornecido
-    if (data.doc1) {
-      const doc1Existente = await pessoaRepository.buscarPordoc1(data.doc1);
-      if (doc1Existente) {
-        const tipoDoc = data.tipo === 'FISICA' ? 'CPF' : 'CNPJ';
- //       throw new ApiError(400, `${tipoDoc} já cadastrado`);
-      }
-    }
-
     return await pessoaRepository.criar(data);
   }
 

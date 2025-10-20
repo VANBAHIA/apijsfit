@@ -1,15 +1,23 @@
 const prisma = require('../config/database');
 
 class PessoaRepository {
+
   async criar(data) {
-    return await prisma.pessoa.create({
-      data,
+    return await prisma.pessoa.upsert({
+      where: {
+        empresaId_doc1: {
+          empresaId: data.empresaId,
+          doc1: data.doc1,
+        },
+      },
+      update: data,
+      create: data,
     });
   }
 
   async buscarTodos(filtros = {}) {
     const { situacao, tipo, skip = 0, take = 10 } = filtros;
-    
+
     const where = {};
     if (situacao) where.situacao = situacao;
     if (tipo) where.tipo = tipo;
@@ -59,9 +67,9 @@ class PessoaRepository {
 
   async buscarComFiltros(filtros) {
     const { nome1, doc1, situacao } = filtros;
-    
+
     const where = {};
-    
+
     if (nome1) {
       where.nome1 = { contains: nome1, mode: 'insensitive' };
     }

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const usuarioController = require('../controllers/usuarioController');
+const { verificarAutenticacao } = require('../middlewares/auth');
+const { setEmpresaContext } = require('../middlewares/empresaContext');
 
 /**
  * @route   POST /api/usuarios/login
@@ -19,50 +21,50 @@ router.post('/validar-token', usuarioController.validarToken);
 /**
  * @route   POST /api/usuarios
  * @desc    Criar novo usuário
- * @access  Public
+ * @access  Privado (empresa)
  */
-router.post('/', usuarioController.criar);
+router.post('/', verificarAutenticacao, setEmpresaContext, usuarioController.criar);
 
 /**
  * @route   GET /api/usuarios
- * @desc    Listar todos os usuários com paginação
- * @access  Public
+ * @desc    Listar todos os usuários
+ * @access  Privado (empresa)
  */
-router.get('/', usuarioController.buscarTodos);
+router.get('/', verificarAutenticacao, setEmpresaContext, usuarioController.buscarTodos);
 
 /**
  * @route   GET /api/usuarios/:id
  * @desc    Buscar usuário por ID
- * @access  Public
+ * @access  Privado (empresa)
  */
-router.get('/:id', usuarioController.buscarPorId);
+router.get('/:id', verificarAutenticacao, setEmpresaContext, usuarioController.buscarPorId);
 
 /**
  * @route   PUT /api/usuarios/:id
  * @desc    Atualizar usuário
- * @access  Public
+ * @access  Privado (empresa)
  */
-router.put('/:id', usuarioController.atualizar);
+router.put('/:id', verificarAutenticacao, setEmpresaContext, usuarioController.atualizar);
 
 /**
  * @route   PATCH /api/usuarios/:id/senha
  * @desc    Alterar senha do usuário
- * @access  Public
+ * @access  Privado (empresa)
  */
-router.patch('/:id/senha', usuarioController.alterarSenha);
+router.patch('/:id/senha', verificarAutenticacao, setEmpresaContext, usuarioController.alterarSenha);
 
 /**
  * @route   PATCH /api/usuarios/:id/situacao
  * @desc    Alterar situação do usuário
- * @access  Public
+ * @access  Privado (empresa)
  */
-router.patch('/:id/situacao', usuarioController.alterarSituacao);
+router.patch('/:id/situacao', verificarAutenticacao, setEmpresaContext, usuarioController.alterarSituacao);
 
 /**
  * @route   DELETE /api/usuarios/:id
  * @desc    Deletar usuário
- * @access  Public
+ * @access  Privado (empresa)
  */
-router.delete('/:id', usuarioController.deletar);
+router.delete('/:id', verificarAutenticacao, setEmpresaContext, usuarioController.deletar);
 
 module.exports = router;

@@ -121,9 +121,9 @@ model Usuario {
   empresaId String  @db.ObjectId
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  nomeUsuario String @unique
+  nomeUsuario String
   nome        String
-  email       String @unique
+  email       String
   senha       String
 
   perfil String @default("USUARIO")
@@ -141,52 +141,14 @@ model Usuario {
   updatedAt DateTime @updatedAt
 
   @@index([empresaId])
+  @@unique([empresaId, nomeUsuario])
+  @@unique([empresaId, email])
   @@map("usuarios")
 }
 
+
 // ========== PESSOAS ==========
-model Pessoa {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  empresaId String  @db.ObjectId
-  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  tipo     String
-  nome1    String
-  nome2    String?
-  doc1     String
-  doc2     String?
-  dtNsc    DateTime?
-  situacao String  @default("ATIVO")
-
-  enderecos Json[] @default([])
-  contatos  Json[] @default([])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  alunos       Aluno[]
-  funcionarios Funcionario[]
-
-  @@unique([empresaId])
-  @@unique([empresaId, doc1])
-  @@map("pessoas")
-}
-
-// ========== LOCAIS ==========
-model Local {
-  id        String  @id @default(auto()) @map("_id") @db.ObjectId
-  empresaId String  @db.ObjectId
-  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-
-  nome   String
-  status String @default("ATIVO")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([empresaId])
-  @@map("locais")
-}
 
 // ========== FUNÇÕES ==========
 model Funcao {
@@ -313,15 +275,58 @@ model Aluno {
   @@index([pessoaId])
   @@map("alunos")
 }
+// ========== LOCAIS ==========
+model Local {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  empresaId String  @db.ObjectId
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-// ========== FUNCIONÁRIOS ==========
+  nome   String
+  status String @default("ATIVO")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([empresaId])
+  @@map("locais")
+}
+
+model Pessoa {
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  empresaId String  @db.ObjectId
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  tipo     String
+  nome1    String
+  nome2    String?
+  doc1     String
+  doc2     String?
+  dtNsc    DateTime?
+  situacao String  @default("ATIVO")
+
+  enderecos Json[] @default([])
+  contatos  Json[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alunos       Aluno[]
+  funcionarios Funcionario[]
+
+  @@unique([empresaId, doc1])
+  @@map("pessoas")
+}
+
+
+
+
 model Funcionario {
   id        String  @id @default(auto()) @map("_id") @db.ObjectId
   empresaId String  @db.ObjectId
   empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
 
-  pessoaId String @unique @db.ObjectId
-  pessoa   Pessoa @relation(fields: [pessoaId], references: [id])
+  pessoaId String  @db.ObjectId
+  pessoa   Pessoa  @relation(fields: [pessoaId], references: [id])
 
   matricula    String
   funcaoId     String   @db.ObjectId
@@ -336,11 +341,13 @@ model Funcionario {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([empresaId, matricula])
+  // 🔹 Agora a combinação abaixo garante unicidade dentro da empresa
+  @@unique([empresaId, matricula, pessoaId]) 
   @@index([empresaId])
   @@index([funcaoId])
   @@map("funcionarios")
 }
+
 
 // ========== MATRÍCULAS ==========
 model Matricula {

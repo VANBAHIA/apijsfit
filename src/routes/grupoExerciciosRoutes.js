@@ -9,35 +9,35 @@ const { setEmpresaContext } = require('../middlewares/empresaContext');
 router.get('/',
   verificarAutenticacao,
   setEmpresaContext,
-  verificarPermissaoModulo('modalidades', 'acessar'),
+  verificarPermissaoModulo('gruposexercicio', 'acessar'),
   grupoExercicioController.listarTodos
 );
 
 router.post('/',
   verificarAutenticacao,
   setEmpresaContext,
-  verificarPermissaoModulo('modalidades', 'criar'),
+  verificarPermissaoModulo('gruposexercicio', 'criar'),
   grupoExercicioController.criar
 );
 
 router.get('/:id',
   verificarAutenticacao,
   setEmpresaContext,
-  verificarPermissaoModulo('modalidades', 'acessar'),
+  verificarPermissaoModulo('gruposexercicio', 'acessar'),
   grupoExercicioController.buscarPorId
 );
 
 router.put('/:id',
   verificarAutenticacao,
   setEmpresaContext,
-  verificarPermissaoModulo('modalidades', 'editar'),
+  verificarPermissaoModulo('gruposexercicio', 'editar'),
   grupoExercicioController.atualizar
 );
 
 router.delete('/:id',
   verificarAutenticacao,
   setEmpresaContext,
-  verificarPermissaoModulo('modalidades', 'excluir'),
+  verificarPermissaoModulo('gruposexercicio', 'excluir'),
   grupoExercicioController.deletar
 );
 

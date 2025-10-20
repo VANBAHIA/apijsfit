@@ -27,7 +27,8 @@ const verificarAutenticacao = async (req, res, next) => {
     console.log('🔍 Token Decodificado:', {
       usuarioId: decoded.id,
       empresaId: decoded.empresaId,
-      nomeUsuario: decoded.nomeUsuario
+      nomeUsuario: decoded.nomeUsuario,
+      PerfiUsuario: decoded.perfil
     });
 
     // Buscar usuário

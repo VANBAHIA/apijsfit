@@ -25,6 +25,7 @@ const frequenciaRoutes = require('./frequenciaRoutes');
 const relatorioFinanceiroRoutes = require('./relatorioFinanceiroRoutes');
 const equipamentoRoutes = require('./equipamentoRoutes');
 const grupoExercicioRoutes = require('./grupoExerciciosRoutes');
+const exercicioRoutes = require('./exerciciosRoutes');
 
 
 
@@ -52,7 +53,8 @@ router.use('/visitantes', visitanteRoutes);
 router.use('/frequencias', frequenciaRoutes);
 router.use('/relatorios/financeiro', relatorioFinanceiroRoutes);
 router.use('/equipamentos', equipamentoRoutes);
-router.use('/grupos-exercicio', grupoExercicioRoutes); 
+router.use('/gruposexercicio', grupoExercicioRoutes); 
+router.use('/exercicios', exercicioRoutes); 
 
 
 
@@ -90,7 +92,8 @@ router.get('/health', (req, res) => {
       frequencias: 'api/frequencias',
       relatorioFinanceiroRoutes: 'api/relatorioFinanceiroRoutes',
       equipamentos: '/api/equipamentos',
-      grupoExercicios: '/api/grupos-exercicio'
+      grupoExercicios: '/api/gruposexercicio',
+      Exercicios: '/api/exercicios',
       
     }
   });
@@ -124,7 +127,8 @@ router.get('/', (req, res) => {
       { path: '/api/frequencias', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/relatorioFinanceiroRoutes', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/equipamentos', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { path: '/api/grupos-exercicio', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+      { path: '/api/gruposexercicio', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
+      { path: '/api/exercicios', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
 
 
     ]

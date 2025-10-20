@@ -1,215 +1,61 @@
 const { PrismaClient } = require('@prisma/client');
 const ApiError = require('../utils/apiError');
-const pessoaService = require('./pessoaService');
+const funcionarioRepository = require('../repositories/funcionarioRepository');
+
 
 const prisma = new PrismaClient();
 
 class FuncionarioService {
-  /**
-   * Gera a próxima matrícula sequencial
-   */
-  async _gerarProximaMatricula(prismaClient) {
-    const ultimoFuncionario = await prismaClient.funcionario.findFirst({
-      orderBy: { matricula: 'desc' },
-      select: { matricula: true }
+
+
+  async criar(dadosCompletos, empresaId) {
+    const { pessoa, funcionario } = dadosCompletos;
+
+    console.log('📋 Service recebeu:', {
+      empresaId,
+      pessoaNome: pessoa?.nome1,
+      funcionarioMatricula: funcionario?.matricula,
+      doc1: pessoa?.dataAdmissao
     });
-
-    if (!ultimoFuncionario || !ultimoFuncionario.matricula) {
-      return 'F00001';
-    }
-
-    const ultimoNumero = parseInt(ultimoFuncionario.matricula.replace('F', ''));
-    const proximoNumero = ultimoNumero + 1;
-
-    return `F${proximoNumero.toString().padStart(5, '0')}`;
-  }
-
-
-  async _buscarOuCriarPessoa(dadosPessoa, prismaClient) {
-    // PASSO 1: Validar dados mínimos obrigatórios
-    if (!dadosPessoa.doc1) {
-      throw new ApiError(400, 'CPF/CNPJ (doc1) é obrigatório');
-    }
-
-    if (!dadosPessoa.nome1) {
-      throw new ApiError(400, 'Nome (nome1) é obrigatório');
-    }
-
-    // PASSO 2: Verificar se pessoa já existe pelo CPF/CNPJ
-    let pessoaExistente = await prismaClient.pessoa.findFirst({
-      where: { doc1: dadosPessoa.doc1 }
-    });
-
-    // PASSO 3: Se pessoa existe, retornar o ID dela
-    if (pessoaExistente) {
-      console.log(`✅ Pessoa encontrada: ${pessoaExistente.nome1} (ID: ${pessoaExistente.id})`);
-
-      // OPCIONAL: Atualizar dados da pessoa existente se necessário
-      const dadosAtualizacao = {
-        nome1: dadosPessoa.nome1,
-        nome2: dadosPessoa.nome2 || null,
-        doc2: dadosPessoa.doc2 || null,
-        situacao: dadosPessoa.situacao || pessoaExistente.situacao
-      };
-
-      if (dadosPessoa.dtNsc) {
-        dadosAtualizacao.dtNsc = new Date(dadosPessoa.dtNsc);
-      }
-
-      if (dadosPessoa.enderecos && Array.isArray(dadosPessoa.enderecos)) {
-        dadosAtualizacao.enderecos = dadosPessoa.enderecos;
-      }
-
-      if (dadosPessoa.contatos && Array.isArray(dadosPessoa.contatos)) {
-        dadosAtualizacao.contatos = dadosPessoa.contatos;
-      }
-
-      pessoaExistente = await prismaClient.pessoa.update({
-        where: { id: pessoaExistente.id },
-        data: dadosAtualizacao
-      });
-
-      return pessoaExistente.id;
-    }
-
-    // PASSO 4: Se pessoa NÃO existe, criar uma nova
-    console.log(`📝 Criando nova pessoa: ${dadosPessoa.nome1}`);
-
-
-
-    const novaPessoa = await prismaClient.pessoa.create({
-      data: {
-
-        tipo: dadosPessoa.tipo || 'FISICA',
-        nome1: dadosPessoa.nome1,
-        nome2: dadosPessoa.nome2 || null,
-        doc1: dadosPessoa.doc1,
-        doc2: dadosPessoa.doc2 || null,
-        dtNsc: dadosPessoa.dtNsc ? new Date(dadosPessoa.dtNsc) : null,
-        situacao: dadosPessoa.situacao || 'ATIVO',
-        enderecos: dadosPessoa.enderecos || [],
-        contatos: dadosPessoa.contatos || []
-      }
-    });
-
-    console.log(`✅ Pessoa criada com sucesso (ID: ${novaPessoa.id})`);
-    return novaPessoa.id;
-  }
-
-  /**
-   * Cria um novo funcionário COM sua pessoa em transação atômica
-   * 🆕 AGORA SUPORTA pessoaId OU dados completos da pessoa
-   */
-  async criarComPessoa(dadosCompletos) {
-    
-    const { pessoa, funcionario, empresaId } = dadosCompletos;
 
     if (!empresaId) {
-      throw new ApiError(400, 'empresaId é obrigatório para criar funcionário');
+      throw new ApiError(400, 'empresaId é obrigatório (via middleware)');
     }
 
-
-    // 🆕 PASSO 1: Verificar se pessoaId foi fornecido
-    let pessoaId = funcionario?.pessoaId;
-
-    // 🆕 PASSO 2: Se pessoaId está vazio/nulo, verificar se há dados da pessoa
-    if (!pessoaId || pessoaId === '') {
-      console.log('⚠️ pessoaId não fornecido, verificando dados de pessoa...');
-
-      if (!pessoa || !pessoa.doc1) {
-        throw new ApiError(
-          400,
-          'É necessário fornecer pessoaId OU os dados completos da pessoa com CPF/CNPJ'
-        );
-      }
-
-      // 🆕 PASSO 3: Buscar pessoa por CPF/CNPJ ou criar se não existir
-      pessoaId = await this._buscarOuCriarPessoa(pessoa, prisma);
+    if (!pessoa || !funcionario) {
+      throw new ApiError(400, 'Dados da pessoa e do funcionário são obrigatórios');
     }
 
-    // PASSO 4: Validar se a pessoa existe (caso tenha vindo pessoaId)
-    const pessoaValidada = await prisma.pessoa.findUnique({
-      where: { id: pessoaId }
-    });
+    const data = {
+      empresaId,
+      tipo: 'FUNCIONARIO',
+      nome1: pessoa.nome1,
+      nome2: pessoa.nome2 || null,
+      doc1: pessoa.doc1,
+      doc2: pessoa.doc2 || null,
+      dtNsc: pessoa.dtNsc ? new Date(pessoa.dtNsc) : null,
+      situacao: pessoa.situacao || 'ATIVO',
+      enderecos: pessoa.enderecos || [],
+      contatos: pessoa.contatos || [],
+      matricula: funcionario.matricula || null,
+      funcaoId: funcionario.funcaoId,
+      dataAdmissao: funcionario.dataAdmissao
+        ? new Date(funcionario.dataAdmissao)
+        : new Date(),
+      dataDemissao: funcionario.dataDemissao
+        ? new Date(funcionario.dataDemissao)
+        : null,
+      salario: funcionario.salario ? Number(funcionario.salario) : null,
+      situacaoFuncionario: funcionario.situacao || 'ATIVO'
+    };
 
-    if (!pessoaValidada) {
-      throw new ApiError(404, `Pessoa com ID ${pessoaId} não encontrada`);
-    }
-
-    // PASSO 5: Verificar se já existe funcionário para essa pessoa
-    const funcionarioExistente = await prisma.funcionario.findFirst({
-      where: { pessoaId }
-    });
-
-    if (funcionarioExistente) {
-      throw new ApiError(
-        400,
-        `Já existe um funcionário cadastrado para ${pessoaValidada.nome1} (CPF: ${pessoaValidada.doc1})`
-      );
-    }
-
-    // PASSO 6: Validar dados do funcionário
-    if (!funcionario || !funcionario.funcaoId) {
-      throw new ApiError(400, 'Função do funcionário é obrigatória');
-    }
-
-    if (!funcionario.dataAdmissao) {
-      throw new ApiError(400, 'Data de admissão é obrigatória');
-    }
-
-    // PASSO 7: Criar o funcionário
-    try {
-      const matricula = await this._gerarProximaMatricula(prisma);
-
-  const dadosFuncionario = {
-  matricula,
-  pessoaId,
-  funcaoId: funcionario.funcaoId,
-  dataAdmissao: new Date(funcionario.dataAdmissao),
-  dataDemissao: funcionario.dataDemissao ? new Date(funcionario.dataDemissao) : null,
-  salario: funcionario.salario ? Number(funcionario.salario) : null,
-  situacao: funcionario.situacao || 'ATIVO',
-  empresaId // ✅ ESSENCIAL
-};
-
-
-      const funcionarioCriado = await prisma.funcionario.create({
-        data: dadosFuncionario,
-        include: {
-          pessoa: {
-            select: {
-              id: true,            
-              nome1: true,
-              nome2: true,
-              doc1: true,
-              doc2: true,
-              dtNsc: true,
-              situacao: true,
-              enderecos: true,
-              contatos: true
-            }
-          },
-          funcao: true
-        }
-      });
-
-      console.log(`✅ Funcionário criado: ${funcionarioCriado.matricula}`);
-      return funcionarioCriado;
-
-    } catch (error) {
-      console.error('❌ Erro ao criar funcionário:', error);
-
-      if (error instanceof ApiError) {
-        throw error;
-      }
-
-      throw new ApiError(500, `Erro ao criar funcionário: ${error.message}`);
-    }
+    return await funcionarioRepository.criar(data);
   }
 
+
   /**
-   * Lista todos os funcionários com paginação
-   */
+    * Lista todos os funcionários com paginação
+    */
   async listarTodos(filtros = {}) {
 
 

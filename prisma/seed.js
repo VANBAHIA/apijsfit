@@ -6,6 +6,8 @@ const prisma = new PrismaClient();
 
 /** -----------------------------------
   CONFIGURAÇÕES
+
+  prara eexecutar digite npx prisma db seed
 ----------------------------------*/
 const EMPRESA_ID = '68f117b9827d804b63d8d622';
 const DATABASE_PATH = path.join(__dirname, 'DATABASE.JSON');

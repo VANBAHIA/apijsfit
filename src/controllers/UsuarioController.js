@@ -1,19 +1,15 @@
-
 const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/apiResponse');
 const ApiError = require('../utils/apiError');
-
 const usuarioService = require('../services/usuarioService');
-
-
 
 class UsuarioController {
   criar = asyncHandler(async (req, res) => {
-    const dados = req.body;
+    const empresaId = req.empresaId;
+    const dados = { ...req.body, empresaId };
 
     const usuario = await usuarioService.criar(dados);
 
-    // Remover senha da resposta
     delete usuario.senha;
 
     res.status(201).json(
@@ -22,32 +18,31 @@ class UsuarioController {
   });
 
   login = asyncHandler(async (req, res) => {
-    const { nomeUsuario, senha, empresaId } = req.body; // ✅ Adicionar empresaId
-
+    const { nomeUsuario, senha, empresaId } = req.body; // 👈 aqui sim
     if (!nomeUsuario || !senha) {
       throw new ApiError(400, 'Nome de usuário e senha são obrigatórios');
     }
-
     if (!empresaId) {
       throw new ApiError(400, 'Empresa não selecionada');
     }
 
-    const resultado = await usuarioService.login(nomeUsuario, senha, empresaId); // ✅ Passar empresaId
-
-    res.status(200).json(
-      new ApiResponse(200, resultado, 'Login realizado com sucesso')
-    );
+    const resultado = await usuarioService.login(nomeUsuario, senha, empresaId);
+    res.status(200).json(new ApiResponse(200, resultado, 'Login realizado com sucesso'));
   });
 
+
   buscarTodos = asyncHandler(async (req, res) => {
-    const { empresaId, perfil, situacao, page, limit } = req.query;
+
+    const empresaId = req.empresaId;
+
+    const { situacao, page, limit } = req.query;
 
     const skip = page ? (Number(page) - 1) * Number(limit || 10) : 0;
     const take = limit ? Number(limit) : 10;
 
     const resultado = await usuarioService.buscarTodos({
       empresaId,
-      perfil,
+      perfil: req.usuario.perfil,
       situacao,
       skip,
       take
@@ -59,7 +54,8 @@ class UsuarioController {
   });
 
   buscarPorId = asyncHandler(async (req, res) => {
-    const usuario = await usuarioService.buscarPorId(req.params.id);
+    const empresaId = req.empresaId;
+    const usuario = await usuarioService.buscarPorId(req.params.id, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, usuario, 'Usuário encontrado')
@@ -67,7 +63,9 @@ class UsuarioController {
   });
 
   atualizar = asyncHandler(async (req, res) => {
-    const dados = req.body;
+    const empresaId = req.empresaId;
+
+    const dados = { ...req.body, empresaId };
 
     const usuario = await usuarioService.atualizar(req.params.id, dados);
 
@@ -77,13 +75,14 @@ class UsuarioController {
   });
 
   alterarSenha = asyncHandler(async (req, res) => {
+    const empresaId = req.empresaId;
     const { senhaAtual, novaSenha } = req.body;
 
     if (!senhaAtual || !novaSenha) {
       throw new ApiError(400, 'Senha atual e nova senha são obrigatórias');
     }
 
-    await usuarioService.alterarSenha(req.params.id, senhaAtual, novaSenha);
+    await usuarioService.alterarSenha(req.params.id, senhaAtual, novaSenha, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, null, 'Senha alterada com sucesso')
@@ -91,7 +90,9 @@ class UsuarioController {
   });
 
   deletar = asyncHandler(async (req, res) => {
-    await usuarioService.deletar(req.params.id);
+  
+    const empresaId = req.empresaId;
+    await usuarioService.deletar(req.params.id, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, null, 'Usuário deletado com sucesso')
@@ -99,13 +100,14 @@ class UsuarioController {
   });
 
   alterarSituacao = asyncHandler(async (req, res) => {
+    const empresaId = req.empresaId;
     const { situacao } = req.body;
 
     if (!situacao) {
       throw new ApiError(400, 'Situação é obrigatória');
     }
 
-    const usuario = await usuarioService.alterarSituacao(req.params.id, situacao);
+    const usuario = await usuarioService.alterarSituacao(req.params.id, situacao, empresaId);
 
     res.status(200).json(
       new ApiResponse(200, usuario, 'Situação alterada com sucesso')

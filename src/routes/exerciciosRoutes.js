@@ -4,8 +4,16 @@ const exercicioController = require('../controllers/exercicioController');
 const { verificarAutenticacao } = require('../middlewares/auth');
 const { verificarPermissaoModulo } = require('../middlewares/verificarPermissao');
 const { setEmpresaContext } = require('../middlewares/empresaContext');
+const upload = require('../middlewares/uploadMiddleware');
 
-// Listar (GET) - permissões conforme módulo 'exercicios'
+router.post('/:id/imagem',
+  verificarAutenticacao,
+  setEmpresaContext,
+  verificarPermissaoModulo('exercicios', 'editar'),
+  upload.single('imagem'),
+  exercicioController.uploadImagem
+);
+
 router.get('/',
   verificarAutenticacao,
   setEmpresaContext,
@@ -40,5 +48,28 @@ router.delete('/:id',
   verificarPermissaoModulo('exercicios', 'excluir'),
   exercicioController.deletar
 );
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // Erro do Multer
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Arquivo muito grande. Tamanho máximo: 5MB'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: 'Erro no upload: ' + err.message
+    });
+  } else if (err) {
+    // Outros erros
+    return res.status(400).json({
+      success: false,
+      message: err.message
+    });
+  }
+  next();
+});
+
 
 module.exports = router;

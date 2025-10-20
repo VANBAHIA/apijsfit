@@ -70,11 +70,14 @@ class EmpresaController {
   });
 
   deletar = asyncHandler(async (req, res) => {
+    if  (req.usuario.perfil === "SUPER_ADMIN" ) {    
     await empresaService.deletar(req.params.id);
 
     res.status(200).json(
       new ApiResponse(200, null, 'Empresa deletada com sucesso')
     );
+  }
+
   });
 
   buscarComFiltros = asyncHandler(async (req, res) => {
@@ -86,6 +89,7 @@ class EmpresaController {
   });
 
   alterarSituacao = asyncHandler(async (req, res) => {
+     if  (req.usuario.perfil === "SUPER_ADMIN" ) {  
     const { situacao } = req.body;
 
     const empresa = await empresaService.alterarSituacao(req.params.id, situacao);
@@ -93,7 +97,7 @@ class EmpresaController {
     res.status(200).json(
       new ApiResponse(200, empresa, 'Situação alterada com sucesso')
     );
-  });
+  }});
 
 }
 

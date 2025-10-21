@@ -153,8 +153,8 @@ class AvaliacaoFisicaService {
   /**
    * Criar nova avaliação física
    */
-  async criar(dados, empresaId) {
-    const { alunoId, peso, altura, dataAvaliacao } = dados;
+  async criar(dados, alunoId, empresaId) {
+    const { peso, altura, dataAvaliacao } = dados;
 
     // Validações
     if (!empresaId) {

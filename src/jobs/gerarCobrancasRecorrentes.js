@@ -6,6 +6,126 @@ const contaReceberService = require('../services/contaReceberService');
 
 class GerarCobrancasJob {
 
+
+   async atualizarContasVencidas() {
+    try {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      // Atualiza todas as contas vencidas que ainda não estão marcadas como PAGO ou CANCELADO
+      const resultado = await prisma.contaReceber.updateMany({
+        where: {
+          dataVencimento: { lt: hoje },
+          status: { notIn: ['PAGO', 'CANCELADO', 'VENCIDO'] },
+        },
+        data: {
+          status: 'VENCIDO'
+        },
+      });
+
+      console.log(`📅 [Contas Vencidas] Atualizadas ${resultado.count} contas para status VENCIDO`);
+      return resultado.count;
+    } catch (error) {
+      console.error('❌ Erro ao atualizar contas vencidas:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Executa o job de geração de cobranças
+   */
+  async executar() {
+    try {
+      console.log('🚀 Iniciando job de geração de cobranças...');
+
+      // 🆕 Atualizar contas vencidas antes de gerar novas cobranças
+      await this.atualizarContasVencidas();
+
+      const dataHoje = new Date();
+      dataHoje.setHours(0, 0, 0, 0);
+
+      // Buscar próximos 7 dias
+      const dataLimite = new Date(dataHoje);
+      dataLimite.setDate(dataLimite.getDate() + 7);
+
+      const matriculas = await this.buscarMatriculasParaGerar(dataHoje, dataLimite);
+
+      console.log(`📋 Encontradas ${matriculas.length} matrículas ativas com planos recorrentes`);
+
+      const resultados = {
+        total: matriculas.length,
+        geradas: 0,
+        jaExistiam: 0,
+        erros: 0,
+        dataFimAtualizadas: 0,
+        detalhes: []
+      };
+
+      for (const matricula of matriculas) {
+        try {
+          const resultado = await this.processarMatricula(matricula, dataHoje);
+
+          if (resultado.gerada) {
+            resultados.geradas++;
+            if (resultado.dataFimAtualizada) {
+              resultados.dataFimAtualizadas++;
+            }
+          } else {
+            resultados.jaExistiam++;
+          }
+
+          resultados.detalhes.push({
+            matricula: matricula.codigo,
+            aluno: matricula.aluno.pessoa.nome1,
+            plano: matricula.plano.nome,
+            ...resultado
+          });
+
+        } catch (error) {
+          resultados.erros++;
+          console.error(`❌ Erro ao processar matrícula ${matricula.codigo}:`, error);
+
+          resultados.detalhes.push({
+            matricula: matricula.codigo,
+            erro: error.message
+          });
+        }
+      }
+
+      console.log('✅ Job concluído:', {
+        total: resultados.total,
+        geradas: resultados.geradas,
+        jaExistiam: resultados.jaExistiam,
+        erros: resultados.erros,
+        dataFimAtualizadas: resultados.dataFimAtualizadas
+      });
+
+      return resultados;
+
+    } catch (error) {
+      console.error('❌ Erro ao executar job:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ✅ FUNÇÃO AUXILIAR: Adicionar meses de forma segura
+   */
+  adicionarMesesSeguro(data, meses) {
+    const resultado = new Date(data);
+    const diaOriginal = resultado.getDate();
+    
+    // Adiciona os meses
+    resultado.setMonth(resultado.getMonth() + meses);
+    
+    // Se o dia mudou (ex: 31/01 virou 03/03), ajusta para o último dia do mês anterior
+    if (resultado.getDate() !== diaOriginal) {
+      resultado.setDate(0); // Volta para o último dia do mês anterior
+    }
+    
+    return resultado;
+  }
+
   /**
    * Busca matrículas ativas com planos recorrentes
    */
@@ -14,27 +134,42 @@ class GerarCobrancasJob {
       where: {
         situacao: 'ATIVA',
         diaVencimento: { not: null },
-
-        // ✅ FILTRAR APENAS PLANOS RECORRENTES
-        plano: {
-          tipoCobranca: 'RECORRENTE'
-        }
+        plano: { tipoCobranca: 'RECORRENTE' },
       },
       include: {
         aluno: {
           include: {
-            pessoa: {
-              select: {
-                nome1: true,
-                doc1: true
-              }
-            }
+            pessoa: { select: { nome1: true, doc1: true } }
           }
         },
         plano: true,
-        desconto: true
-      }
+        desconto: true,
+      },
     });
+  }
+
+  /**
+   * ✅ NOVA FUNÇÃO: Atualiza a dataFim da matrícula adicionando 1 mês
+   */
+  async atualizarDataFimMatricula(matriculaId, dataFimAtual) {
+    try {
+      const novaDataFim = this.adicionarMesesSeguro(dataFimAtual, 1);
+      
+      await prisma.matricula.update({
+        where: { id: matriculaId },
+        data: { dataFim: novaDataFim }
+      });
+
+      console.log(`📅 Data fim atualizada - Matrícula ${matriculaId}:`, {
+        dataFimAnterior: dataFimAtual.toLocaleDateString('pt-BR'),
+        novaDataFim: novaDataFim.toLocaleDateString('pt-BR')
+      });
+
+      return novaDataFim;
+    } catch (error) {
+      console.error(`❌ Erro ao atualizar dataFim da matrícula ${matriculaId}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -99,6 +234,7 @@ class GerarCobrancasJob {
 
     // ✅ Criar nova cobrança vinculada à matrícula
     const novaConta = await contaReceberService.criar({
+      empresaId: matricula.empresaId,
       matriculaId: matricula.id,
       alunoId: matricula.alunoId,
       planoId: matricula.planoId,
@@ -107,10 +243,24 @@ class GerarCobrancasJob {
       observacoes: `Cobrança automática - Matrícula: ${matricula.codigo} - Ref: ${mesReferencia}`
     });
 
+    // 🆕 ATUALIZAR DATA FIM DA MATRÍCULA (+1 MÊS)
+    let novaDataFim = null;
+    try {
+      novaDataFim = await this.atualizarDataFimMatricula(
+        matricula.id, 
+        matricula.dataFim
+      );
+      console.log(`✅ Cobrança gerada e dataFim atualizada - Matrícula: ${matricula.codigo}`);
+    } catch (error) {
+      console.error(`⚠️ Cobrança gerada mas falhou ao atualizar dataFim:`, error);
+      // Não interrompe o fluxo, a cobrança já foi criada
+    }
+
     return {
       gerada: true,
       numero: novaConta.numero,
-      vencimento: proximoVencimento
+      vencimento: proximoVencimento,
+      dataFimAtualizada: novaDataFim ? novaDataFim.toLocaleDateString('pt-BR') : 'Erro ao atualizar'
     };
   }
 
@@ -180,18 +330,14 @@ class GerarCobrancasJob {
     return vencimento;
   }
 
-  /**
-   * Formata o mês de referência (MM/YYYY)
-   */
+  
   formatarMesReferencia(data) {
     const mes = String(data.getMonth() + 1).padStart(2, '0');
     const ano = data.getFullYear();
     return `${mes}/${ano}`;
   }
 
-  /**
-   * ✅ Verifica se já existe cobrança para esta matrícula no período
-   */
+
   async verificarCobrancaExistente(matriculaId, alunoId, planoId, mesReferencia) {
     return await prisma.contaReceber.findFirst({
       where: {
@@ -208,68 +354,7 @@ class GerarCobrancasJob {
     });
   }
 
-  /**
-   * Executa o job de geração de cobranças
-   */
-  async executar() {
-    try {
-      console.log('🚀 Iniciando job de geração de cobranças...');
 
-      const dataHoje = new Date();
-      dataHoje.setHours(0, 0, 0, 0);
-
-      // Buscar próximos 7 dias
-      const dataLimite = new Date(dataHoje);
-      dataLimite.setDate(dataLimite.getDate() + 7);
-
-      const matriculas = await this.buscarMatriculasParaGerar(dataHoje, dataLimite);
-
-      console.log(`📋 Encontradas ${matriculas.length} matrículas ativas com planos recorrentes`);
-
-      const resultados = {
-        total: matriculas.length,
-        geradas: 0,
-        jaExistiam: 0,
-        erros: 0,
-        detalhes: []
-      };
-
-      for (const matricula of matriculas) {
-        try {
-          const resultado = await this.processarMatricula(matricula, dataHoje);
-
-          if (resultado.gerada) {
-            resultados.geradas++;
-          } else {
-            resultados.jaExistiam++;
-          }
-
-          resultados.detalhes.push({
-            matricula: matricula.codigo,
-            aluno: matricula.aluno.pessoa.nome1,
-            plano: matricula.plano.nome,
-            ...resultado
-          });
-
-        } catch (error) {
-          resultados.erros++;
-          console.error(`❌ Erro ao processar matrícula ${matricula.codigo}:`, error);
-
-          resultados.detalhes.push({
-            matricula: matricula.codigo,
-            erro: error.message
-          });
-        }
-      }
-
-      console.log('✅ Job concluído:', resultados);
-      return resultados;
-
-    } catch (error) {
-      console.error('❌ Erro ao executar job:', error);
-      throw error;
-    }
-  }
 }
 
 module.exports = new GerarCobrancasJob();

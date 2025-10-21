@@ -1,47 +1,72 @@
 const express = require('express');
 const router = express.Router();
 const equipamentoController = require('../controllers/equipamentoController');
+const exercicioEquipamentoController = require('../controllers/exercicioEquipamentoController');
 const { verificarAutenticacao } = require('../middlewares/auth');
 const { verificarPermissaoModulo } = require('../middlewares/verificarPermissao');
 const { setEmpresaContext } = require('../middlewares/empresaContext');
 
-// ✅ APLICAR PERMISSÕES
-router.get('/',
+// ✅ ROTAS MAIS ESPECÍFICAS PRIMEIRO
+
+// Listar exercícios de um equipamento (GET)
+router.get(
+  '/:equipamentoId/exercicios',
+  verificarAutenticacao,
+  setEmpresaContext,
+  verificarPermissaoModulo('exercicioEquipamentos', 'visualizar'),
+  exercicioEquipamentoController.listarExerciciosDoEquipamento
+);
+
+// ✅ ROTAS GENÉRICAS POR ÚLTIMO
+
+// Listar todos
+router.get(
+  '/',
   verificarAutenticacao,
   setEmpresaContext,
   verificarPermissaoModulo('equipamentos', 'acessar'),
   equipamentoController.listarTodos
 );
 
-router.post('/',
+// Criar
+router.post(
+  '/',
   verificarAutenticacao,
   setEmpresaContext,
   verificarPermissaoModulo('equipamentos', 'criar'),
   equipamentoController.criar
 );
 
-router.get('/:id',
+// Buscar por ID
+router.get(
+  '/:id',
   verificarAutenticacao,
   setEmpresaContext,
   verificarPermissaoModulo('equipamentos', 'acessar'),
   equipamentoController.buscarPorId
 );
 
-router.get('/codigo/:codigo',
+// Buscar por código
+router.get(
+  '/codigo/:codigo',
   verificarAutenticacao,
   setEmpresaContext,
   verificarPermissaoModulo('equipamentos', 'acessar'),
   equipamentoController.buscarPorCodigo
 );
 
-router.put('/:id',
+// Atualizar
+router.put(
+  '/:id',
   verificarAutenticacao,
   setEmpresaContext,
   verificarPermissaoModulo('equipamentos', 'editar'),
   equipamentoController.atualizar
 );
 
-router.delete('/:id',
+// Deletar
+router.delete(
+  '/:id',
   verificarAutenticacao,
   setEmpresaContext,
   verificarPermissaoModulo('equipamentos', 'excluir'),

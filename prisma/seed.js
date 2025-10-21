@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
   prara eexecutar digite npx prisma db seed
 ----------------------------------*/
-const EMPRESA_ID = '68f117b9827d804b63d8d622';
+const EMPRESA_ID = '68f2443c95d5de7d6de6c62b';
 const DATABASE_PATH = path.join(__dirname, 'DATABASE.JSON');
 
 // 🔥 true = apaga tudo e recria / false = só adiciona o que falta

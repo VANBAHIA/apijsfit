@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@pm2/io": "^6.1.0",
     "@prisma/client": "^6.17.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",

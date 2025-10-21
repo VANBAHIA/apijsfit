@@ -25,9 +25,10 @@ const relatorioFinanceiroRoutes = require('./relatorioFinanceiroRoutes');
 const equipamentoRoutes = require('./equipamentoRoutes');
 const grupoExercicioRoutes = require('./grupoExerciciosRoutes');
 const exercicioRoutes = require('./exerciciosRoutes');
-const exercicioEquipamentoRoutes = require('./exercicioEquipamentoRoutes'); // ✅ NOVO
+const avaliacaoFisicaRoutes = require('./avaliacaoFisicaRoutes');
 
-// Registrar rotas
+
+
 router.use('/pessoas', pessoaRoutes);
 router.use('/alunos', alunoRoutes);
 router.use('/users', userRoutes);
@@ -51,9 +52,9 @@ router.use('/relatorios/financeiro', relatorioFinanceiroRoutes);
 router.use('/equipamentos', equipamentoRoutes);
 router.use('/gruposexercicio', grupoExercicioRoutes);
 router.use('/exercicios', exercicioRoutes);
-router.use('/exercicio-equipamento', exercicioEquipamentoRoutes); // ✅ NOVO
+router.use('/avaliacoes-fisicas', avaliacaoFisicaRoutes);
 
-// Rota de health check
+
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -84,7 +85,8 @@ router.get('/health', (req, res) => {
       equipamentos: '/api/equipamentos',
       grupoExercicios: '/api/gruposexercicio',
       exercicios: '/api/exercicios',
-      exercicioEquipamento: '/api/exercicio-equipamento' // ✅ NOVO
+      exerciciosEquipamentos: '/api/exercicios/:exercicioId/equipamentos',
+      avaliacoesFisicas: '/api/avaliacoes-fisicas'
     }
   });
 });
@@ -119,11 +121,21 @@ router.get('/', (req, res) => {
       { path: '/api/equipamentos', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/gruposexercicio', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
       { path: '/api/exercicios', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-      { 
-        path: '/api/exercicio-equipamento', 
-        methods: ['POST', 'GET', 'PATCH', 'DELETE'],
-        description: 'Gerenciar vínculo entre Exercícios e Equipamentos'
-      } // ✅ NOVO
+      {
+        path: '/api/exercicios/:exercicioId/equipamentos/:equipamentoId',
+        methods: ['POST', 'DELETE', 'PATCH'],
+        description: 'Vincular/Desvincular exercício com equipamento'
+      },
+      {
+        path: '/api/avaliacoes-fisicas',
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        description: 'Gerenciar avaliações físicas dos alunos'
+      },
+      {
+        path: '/api/exercicios/:exercicioId/equipamentos',
+        methods: ['GET'],
+        description: 'Listar equipamentos de um exercício'
+      }
     ]
   });
 });

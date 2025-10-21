@@ -1,13 +1,13 @@
-// src/services/caixaService.js
-
 const caixaRepository = require('../repositories/caixaRepository');
 const prisma = require('../config/database');
 const ApiError = require('../utils/apiError');
 
 class CaixaService {
+  async gerarNumero(empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-  async gerarNumero() {
     const ultimoCaixa = await prisma.caixa.findFirst({
+      where: { empresaId },
       orderBy: { numero: 'desc' },
       select: { numero: true }
     });
@@ -21,10 +21,10 @@ class CaixaService {
   }
 
   async abrir(data) {
-    const { valorAbertura, usuarioAbertura, observacoes } = data;
+    const { empresaId, valorAbertura, usuarioAbertura, observacoes } = data;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-    // Verificar se já existe caixa aberto
-    const caixaAberto = await caixaRepository.buscarAberto();
+    const caixaAberto = await caixaRepository.buscarAberto(empresaId);
     if (caixaAberto) {
       throw new ApiError(400, `Já existe um caixa aberto (${caixaAberto.numero})`);
     }
@@ -37,10 +37,11 @@ class CaixaService {
       throw new ApiError(400, 'Usuário de abertura é obrigatório');
     }
 
-    const numero = await this.gerarNumero();
+    const numero = await this.gerarNumero(empresaId);
     const agora = new Date();
 
     return await caixaRepository.criar({
+      empresaId,
       numero,
       dataAbertura: agora,
       horaAbertura: agora.toLocaleTimeString('pt-BR'),
@@ -52,13 +53,9 @@ class CaixaService {
     });
   }
 
-  /**
-   * 🆕 NOVO: Registrar movimento com suporte a transação
-   * @param {string} caixaId - ID do caixa
-   * @param {object} movimento - Dados do movimento
-   * @param {object} tx - Transação do Prisma (opcional)
-   */
-  async registrarMovimento(caixaId, movimento, tx = null) {
+  async registrarMovimento(caixaId, movimento, empresaId, tx = null) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+
     const {
       tipo,
       valor,
@@ -69,10 +66,9 @@ class CaixaService {
       categoria
     } = movimento;
 
-    // Usar transação se fornecida, senão usar prisma normal
     const db = tx || prisma;
 
-    const caixa = await db.caixa.findUnique({ where: { id: caixaId } });
+    const caixa = await db.caixa.findFirst({ where: { id: caixaId, empresaId } });
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
 
     if (caixa.status !== 'ABERTO') {
@@ -124,9 +120,10 @@ class CaixaService {
   }
 
   async fechar(id, data) {
-    const { valorFechamento, usuarioFechamento, observacoes } = data;
+    const { empresaId, valorFechamento, usuarioFechamento, observacoes } = data;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-    const caixa = await caixaRepository.buscarPorId(id);
+    const caixa = await caixaRepository.buscarPorId(id, empresaId);
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
 
     if (caixa.status === 'FECHADO') {
@@ -153,6 +150,7 @@ class CaixaService {
     }
 
     return await caixaRepository.atualizar(id, {
+      empresaId,
       dataFechamento: agora,
       horaFechamento: agora.toLocaleTimeString('pt-BR'),
       valorFechamento: Number(valorFechamento),
@@ -163,26 +161,23 @@ class CaixaService {
     });
   }
 
-  async buscarAberto() {
-    const caixa = await caixaRepository.buscarAberto();
-    if (!caixa) {
-      throw new ApiError(404, 'Nenhum caixa aberto. Abra um caixa antes de registrar pagamentos.');
-    }
-    return caixa;
+  async buscarAberto(empresaId) {
+    return await caixaRepository.buscarAberto(empresaId);
   }
 
   async listarTodos(filtros) {
+    if (!filtros.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     return await caixaRepository.buscarTodos(filtros);
   }
 
-  async buscarPorId(id) {
-    const caixa = await caixaRepository.buscarPorId(id);
+  async buscarPorId(id, empresaId) {
+    const caixa = await caixaRepository.buscarPorId(id, empresaId);
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
     return caixa;
   }
 
-  async removerMovimento(caixaId, movimentoId) {
-    const caixa = await caixaRepository.buscarPorId(caixaId);
+  async removerMovimento(caixaId, movimentoId, empresaId) {
+    const caixa = await caixaRepository.buscarPorId(caixaId, empresaId);
     if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
 
     if (caixa.status === 'FECHADO') {
@@ -205,14 +200,15 @@ class CaixaService {
       : caixa.totalSaidas;
 
     return await caixaRepository.atualizar(caixaId, {
+      empresaId,
       movimentos,
       totalEntradas,
       totalSaidas
     });
   }
 
-  async relatorioCaixa(id) {
-    const caixa = await this.buscarPorId(id);
+  async relatorioCaixa(id, empresaId) {
+    const caixa = await this.buscarPorId(id, empresaId);
 
     const entradas = caixa.movimentos.filter(m => m.tipo === 'ENTRADA');
     const saidas = caixa.movimentos.filter(m => m.tipo === 'SAIDA');
@@ -278,65 +274,54 @@ class CaixaService {
     };
   }
 
- 
   async sangria(caixaId, data) {
-  const { valor, descricao, usuarioResponsavel } = data;
+    const { empresaId, valor, descricao, usuarioResponsavel } = data;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-  // 1. Validar valor informado
-  if (!valor || valor <= 0) {
-    throw new ApiError(400, 'Valor de sangria deve ser maior que zero');
+    if (!valor || valor <= 0) {
+      throw new ApiError(400, 'Valor de sangria deve ser maior que zero');
+    }
+    if (!usuarioResponsavel) {
+      throw new ApiError(400, 'Usuário responsável pela sangria é obrigatório');
+    }
+
+    const caixa = await caixaRepository.buscarPorId(caixaId, empresaId);
+    if (!caixa) throw new ApiError(404, 'Caixa não encontrado');
+    if (caixa.status !== 'ABERTO') {
+      throw new ApiError(400, 'Não é possível realizar sangria em caixa fechado');
+    }
+
+    const saldoAtual = Number(caixa.valorAbertura) + 
+                       Number(caixa.totalEntradas) - 
+                       Number(caixa.totalSaidas);
+
+    if (Number(valor) > saldoAtual) {
+      throw new ApiError(
+        400, 
+        `Saldo insuficiente. Saldo disponível: R$ ${saldoAtual.toFixed(2)} - Valor solicitado: R$ ${Number(valor).toFixed(2)}`
+      );
+    }
+
+    const saldoAposSangria = saldoAtual - Number(valor);
+    if (saldoAposSangria < 0) {
+      throw new ApiError(
+        400, 
+        `Operação negada. A sangria deixaria o caixa com saldo negativo de R$ ${Math.abs(saldoAposSangria).toFixed(2)}`
+      );
+    }
+
+    return await this.registrarMovimento(caixaId, {
+      tipo: 'SAIDA',
+      valor: Number(valor),
+      descricao: `SANGRIA: ${descricao || 'Sem descrição'} - Responsável: ${usuarioResponsavel}`,
+      categoria: 'SANGRIA',
+      formaPagamento: 'DINHEIRO'
+    }, empresaId);
   }
-
-  // 2. Validar usuário
-  if (!usuarioResponsavel) {
-    throw new ApiError(400, 'Usuário responsável pela sangria é obrigatório');
-  }
-
-  // 3. Buscar o caixa
-  const caixa = await caixaRepository.buscarPorId(caixaId);
-  if (!caixa) {
-    throw new ApiError(404, 'Caixa não encontrado');
-  }
-
-  // 4. Validar status
-  if (caixa.status !== 'ABERTO') {
-    throw new ApiError(400, 'Não é possível realizar sangria em caixa fechado');
-  }
-
-  // 5. Calcular saldo atual ANTES de registrar movimento
-  const saldoAtual = Number(caixa.valorAbertura) + 
-                     Number(caixa.totalEntradas) - 
-                     Number(caixa.totalSaidas);
-
-  // 6. VALIDAÇÃO CRÍTICA: Bloquear se não houver saldo suficiente
-  if (Number(valor) > saldoAtual) {
-    throw new ApiError(
-      400, 
-      `Saldo insuficiente. Saldo disponível: R$ ${saldoAtual.toFixed(2)} - Valor solicitado: R$ ${Number(valor).toFixed(2)}`
-    );
-  }
-
-  // 7. Bloquear sangria se o saldo ficar negativo
-  const saldoAposSangria = saldoAtual - Number(valor);
-  if (saldoAposSangria < 0) {
-    throw new ApiError(
-      400, 
-      `Operação negada. A sangria deixaria o caixa com saldo negativo de R$ ${Math.abs(saldoAposSangria).toFixed(2)}`
-    );
-  }
-
-  // 8. Registrar o movimento
-  return await this.registrarMovimento(caixaId, {
-    tipo: 'SAIDA',
-    valor: Number(valor),
-    descricao: `SANGRIA: ${descricao || 'Sem descrição'} - Responsável: ${usuarioResponsavel}`,
-    categoria: 'SANGRIA',
-    formaPagamento: 'DINHEIRO'
-  });
-}
 
   async suprimento(caixaId, data) {
-    const { valor, descricao, usuarioResponsavel } = data;
+    const { empresaId, valor, descricao, usuarioResponsavel } = data;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
     if (!valor || valor <= 0) {
       throw new ApiError(400, 'Valor de suprimento deve ser maior que zero');
@@ -348,7 +333,7 @@ class CaixaService {
       descricao: `SUPRIMENTO: ${descricao} - Responsável: ${usuarioResponsavel}`,
       categoria: 'SUPRIMENTO',
       formaPagamento: 'SUPRIMENTO'
-    });
+    }, empresaId);
   }
 }
 

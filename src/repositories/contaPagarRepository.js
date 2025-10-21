@@ -1,12 +1,15 @@
 const prisma = require('../config/database');
+const ApiError = require('../utils/apiError');
 
 class ContaPagarRepository {
   async criar(data) {
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     return await prisma.contaPagar.create({ data });
   }
 
   async buscarTodos(filtros = {}) {
     const { 
+      empresaId,
       status, 
       categoria, 
       fornecedorId, 
@@ -16,14 +19,15 @@ class ContaPagarRepository {
       skip = 0, 
       take = 10 
     } = filtros;
-    
-    const where = {};
-    
+
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+
+    const where = { empresaId };
     if (status) where.status = status;
     if (categoria) where.categoria = categoria;
     if (fornecedorId) where.fornecedorId = fornecedorId;
     if (funcionarioId) where.funcionarioId = funcionarioId;
-    
+
     if (dataInicio || dataFim) {
       where.dataVencimento = {};
       if (dataInicio) where.dataVencimento.gte = new Date(dataInicio);
@@ -43,45 +47,51 @@ class ContaPagarRepository {
     return { total, contas };
   }
 
-  async buscarPorId(id) {
-    return await prisma.contaPagar.findUnique({ where: { id } });
+  async buscarPorId(id, empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    return await prisma.contaPagar.findFirst({ where: { id, empresaId } });
   }
 
-  async buscarPorNumero(numero) {
-    return await prisma.contaPagar.findUnique({ where: { numero } });
+  async buscarPorNumero(numero, empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    return await prisma.contaPagar.findFirst({ where: { numero, empresaId } });
   }
 
   async atualizar(id, data) {
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     return await prisma.contaPagar.update({ where: { id }, data });
   }
 
-  async deletar(id) {
-    return await prisma.contaPagar.delete({ where: { id } });
+  async deletar(id, empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    return await prisma.contaPagar.delete({ where: { id, empresaId } });
   }
 
-  async buscarVencidas() {
+  async buscarVencidas(empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     return await prisma.contaPagar.findMany({
       where: {
+        empresaId,
         status: 'PENDENTE',
         dataVencimento: { lt: new Date() }
       }
     });
   }
 
-  async buscarPorCategoria(categoria, status = null) {
-    const where = { categoria };
+  async buscarPorCategoria(categoria, empresaId, status = null) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    const where = { empresaId, categoria };
     if (status) where.status = status;
-    
+
     return await prisma.contaPagar.findMany({
       where,
       orderBy: { dataVencimento: 'asc' }
     });
   }
 
-  async totaisPorCategoria(dataInicio, dataFim) {
-    const where = {
-      status: 'PAGO'
-    };
+  async totaisPorCategoria(empresaId, dataInicio, dataFim) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    const where = { empresaId, status: 'PAGO' };
 
     if (dataInicio || dataFim) {
       where.dataPagamento = {};
@@ -92,12 +102,8 @@ class ContaPagarRepository {
     return await prisma.contaPagar.groupBy({
       by: ['categoria'],
       where,
-      _sum: {
-        valorFinal: true
-      },
-      _count: {
-        id: true
-      }
+      _sum: { valorFinal: true },
+      _count: { id: true }
     });
   }
 }

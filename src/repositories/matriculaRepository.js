@@ -72,14 +72,31 @@ class MatriculaRepository {
       data,
     });
   }
-
   async deletar(id, empresaId) {
-    if (!empresaId) throw new Error('empresaId é obrigatório em deletar');
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório em deletar');
 
-    return await prisma.matricula.deleteMany({
-      where: { id, empresaId },
-    });
+    try {
+      // tenta excluir
+      const resultado = await prisma.matricula.deleteMany({
+        where: { id, empresaId },
+      });
+
+      if (resultado.count === 0) {
+        throw new ApiError(404, 'Matrícula não encontrada para exclusão');
+      }
+
+      return resultado;
+    } catch (error) {
+      // trata FK ou erro genérico
+      if (error.code === 'P2003') {
+        // erro de foreign key
+        throw new ApiError(400, 'Não é possível excluir matrícula com vínculos ativos (ex: contas a receber)');
+      }
+
+      throw new ApiError(500, `Erro ao excluir matrícula: ${error.message}`);
+    }
   }
+
 
   async buscarAtivasPorAluno(alunoId, empresaId) {
     if (!empresaId) throw new Error('empresaId é obrigatório em buscarAtivasPorAluno');

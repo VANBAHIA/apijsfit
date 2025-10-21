@@ -1,47 +1,50 @@
+// src/routes/contaReceberRoutes.js
 const express = require('express');
 const router = express.Router();
 const contaReceberController = require('../controllers/contaReceberController');
+const { verificarAutenticacao } = require('../middlewares/auth');
+const { setEmpresaContext } = require('../middlewares/empresaContext');
 
 /**
  * @route   POST /api/contas-receber
  * @desc    Criar nova conta a receber
  */
-router.post('/', contaReceberController.criar);
+router.post('/', verificarAutenticacao, setEmpresaContext, contaReceberController.criar);
 
 /**
  * @route   GET /api/contas-receber
  * @desc    Listar todas as contas a receber
  */
-router.get('/', contaReceberController.listarTodos);
+router.get('/', verificarAutenticacao, setEmpresaContext, contaReceberController.listarTodos);
 
 /**
  * @route   GET /api/contas-receber/:id
  * @desc    Buscar conta por ID
  */
-router.get('/:id', contaReceberController.buscarPorId);
+router.get('/:id', verificarAutenticacao, setEmpresaContext, contaReceberController.buscarPorId);
 
 /**
  * @route   PUT /api/contas-receber/:id
- * @desc    Atualizar conta (antes do pagamento)
+ * @desc    Atualizar dados da conta (antes do pagamento)
  */
-router.put('/:id', contaReceberController.atualizar);
+router.put('/:id', verificarAutenticacao, setEmpresaContext, contaReceberController.atualizar);
 
 /**
  * @route   POST /api/contas-receber/:id/pagar
- * @desc    Registrar pagamento (lança automaticamente no caixa)
+ * @desc    Registrar pagamento (lançado automaticamente no caixa)
  */
-router.post('/:id/pagar', contaReceberController.registrarPagamento);
+router.post('/:id/pagar', verificarAutenticacao, setEmpresaContext, contaReceberController.registrarPagamento);
 
 /**
  * @route   PATCH /api/contas-receber/:id/cancelar
- * @desc    Cancelar conta
+ * @desc    Cancelar uma conta a receber
  */
-router.patch('/:id/cancelar', contaReceberController.cancelar);
+router.patch('/:id/cancelar', verificarAutenticacao, setEmpresaContext, contaReceberController.cancelar);
 
 /**
  * @route   PATCH /api/contas-receber/atualizar-vencidas
- * @desc    Atualizar status de contas vencidas
+ * @desc    Atualizar status das contas vencidas
  */
-router.patch('/atualizar-vencidas', contaReceberController.atualizarVencidas);
+router.patch('/atualizar-vencidas', verificarAutenticacao, setEmpresaContext, contaReceberController.atualizarVencidas);
 
 module.exports = router;

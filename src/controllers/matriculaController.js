@@ -59,11 +59,12 @@ class MatriculaController {
     res.status(200).json(new ApiResponse(200, matricula, 'Matrícula reativada com sucesso'));
   });
 
-  deletar = asyncHandler(async (req, res) => {
-    const empresaId = req.empresaId;
-    await matriculaService.deletar(req.params.id, empresaId);
-    res.status(200).json(new ApiResponse(200, null, 'Matrícula deletada com sucesso'));
-  });
+deletar = asyncHandler(async (req, res) => {
+  const empresaId = req.empresaId;
+  const resultado = await matriculaService.deletar(req.params.id, empresaId);
+  res.status(200).json(new ApiResponse(200, resultado, 'Matrícula excluída com sucesso'));
+});
+
 }
 
 module.exports = new MatriculaController();

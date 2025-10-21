@@ -266,7 +266,7 @@ model Aluno {
   matriculas    Matricula[]
   contasReceber ContaReceber[]
   frequencias   Frequencia[]
-
+  avaliacoesFisicas AvaliacaoFisica[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -726,3 +726,92 @@ model ExercicioEquipamento {
   @@index([equipamentoId])
   @@map("exercicio_equipamentos")
 }
+
+model AvaliacaoFisica {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  codigo    String   @unique
+  empresaId String   @db.ObjectId
+  alunoId   String   @db.ObjectId
+  
+  // Dados da avaliação
+  dataAvaliacao    DateTime
+  proximaAvaliacao DateTime?
+  
+  // Medidas corporais (em cm)
+  peso              Float
+  altura            Float
+  envergadura       Float?
+  
+  // Circunferências (em cm)
+  pescoco           Float?
+  ombro             Float?
+  torax             Float?
+  cintura           Float?
+  abdomen           Float?
+  quadril           Float?
+  bracoDireito      Float?
+  bracoEsquerdo     Float?
+  antebracoDireito  Float?
+  antebracoEsquerdo Float?
+  coxaDireita       Float?
+  coxaEsquerda      Float?
+  panturrilhaDireita   Float?
+  panturrilhaEsquerda  Float?
+  
+  // Dobras cutâneas (em mm)
+  dobrasSubescapular    Float?
+  dobrasTricipital      Float?
+  dobrasBicipital       Float?
+  dobrasToracica        Float?
+  dobrasAxilarMedia     Float?
+  dobrasSuprailiaca     Float?
+  dobrasAbdominal       Float?
+  dobrasCoxa            Float?
+  dobrasPanturrilha     Float?
+  
+  // Índices calculados
+  imc                Float    // Calculado automaticamente
+  percentualGordura  Float?
+  massaMagra         Float?
+  massaGorda         Float?
+  pesoIdeal          Float?
+  
+  // Classificações
+  classificacaoIMC         String? // Abaixo do peso, Normal, Sobrepeso, Obesidade I, II, III
+  classificacaoGordura     String? // Muito baixo, Baixo, Normal, Alto, Muito alto
+  
+  // Pressão arterial e frequência
+  pressaoSistolica   Int?
+  pressaoDiastolica  Int?
+  frequenciaRepouso  Int?
+  
+  // Flexibilidade e força
+  flexibilidade      String? // Teste de sentar e alcançar
+  forcaAbdominal     Int?    // Número de repetições
+  forcaBracos        Int?    // Número de repetições
+  
+  // Dados do avaliador
+  avaliadorId        String?  @db.ObjectId
+  avaliadorNome      String?
+  
+  // Observações
+  objetivos          String?
+  observacoes        String?
+  restricoes         String?
+  
+  // Status
+  status             String   @default("ATIVA") // ATIVA, CANCELADA
+  
+  // Relacionamentos
+  aluno              Aluno    @relation(fields: [alunoId], references: [id])
+  
+  // Auditoria
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([empresaId])
+  @@index([alunoId])
+  @@index([dataAvaliacao])
+  @@map("avaliacoes_fisicas")
+}
+

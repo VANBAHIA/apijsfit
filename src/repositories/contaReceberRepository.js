@@ -1,15 +1,17 @@
 const prisma = require('../config/database');
+const ApiError = require('../utils/apiError');
 
 class ContaReceberRepository {
   async criar(data) {
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     return await prisma.contaReceber.create({ data });
   }
 
-
   async buscarTodos(filtros = {}) {
-    const { status, alunoId, dataInicio, dataFim, skip = 0, take = 10 } = filtros;
+    const { empresaId, status, alunoId, dataInicio, dataFim, skip = 0, take = 10 } = filtros;
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
 
-    const where = {};
+    const where = { empresaId };
     if (status) where.status = status;
     if (alunoId) where.alunoId = alunoId;
 
@@ -32,8 +34,7 @@ class ContaReceberRepository {
                 select: {
                   id: true,
                   nome1: true,
-                  doc1: true,
-                  codigo: true
+                  doc1: true
                 }
               }
             }
@@ -46,9 +47,10 @@ class ContaReceberRepository {
     return { total, contas };
   }
 
-  async buscarPorId(id) {
-    return await prisma.contaReceber.findUnique({
-      where: { id },
+  async buscarPorId(id, empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    return await prisma.contaReceber.findFirst({
+      where: { id, empresaId },
       include: {
         aluno: {
           include: {
@@ -56,8 +58,7 @@ class ContaReceberRepository {
               select: {
                 id: true,
                 nome1: true,
-                doc1: true,
-                codigo: true
+                doc1: true
               }
             }
           }
@@ -66,22 +67,22 @@ class ContaReceberRepository {
     });
   }
 
-  async buscarPorNumero(numero) {
-    return await prisma.contaReceber.findUnique({ where: { numero } });
+  async buscarPorNumero(numero, empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    return await prisma.contaReceber.findFirst({ where: { numero, empresaId } });
   }
 
-  async buscarPorMatriculaId(alunoId) {
-    const contasReceber = await prisma.contaReceber.findMany({
-      where: {
-        alunoId: alunoId
-      },
+  async buscarPorMatriculaId(alunoId, empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+    return await prisma.contaReceber.findMany({
+      where: { alunoId, empresaId },
       orderBy: { createdAt: 'desc' }
     });
-    return contasReceber;
   }
 
   async atualizar(id, data) {
-    // Converter dataVencimento para Date se existir
+    if (!data.empresaId) throw new ApiError(400, 'empresaId é obrigatório');
+
     if (data.dataVencimento && typeof data.dataVencimento === 'string') {
       data.dataVencimento = new Date(data.dataVencimento);
     }
@@ -92,13 +93,30 @@ class ContaReceberRepository {
     });
   }
 
-  async deletar(id) {
-    return await prisma.contaReceber.delete({ where: { id } });
+
+async deletar(id, empresaId) {
+  // 1️⃣ Verifica se a matrícula existe
+  const matricula = await matriculaRepository.buscarPorId(id, empresaId);
+  if (!matricula) throw new ApiError(404, 'Matrícula não encontrada');
+
+  // 2️⃣ Verifica vínculos com contas a receber
+  const vinculadas = await contaReceberRepository.buscarPorMatricula(id, empresaId);
+  if (vinculadas && vinculadas.some(c => ['PAGO', 'ABERTO'].includes(c.status))) {
+    throw new ApiError(400, 'Não é possível excluir matrícula com contas vinculadas');
   }
 
-  async buscarVencidas() {
+  // 3️⃣ Exclui com segurança
+  await matriculaRepository.deletar(id, empresaId);
+
+  return { mensagem: 'Matrícula excluída com sucesso' };
+}
+
+
+  async buscarVencidas(empresaId) {
+    if (!empresaId) throw new ApiError(400, 'empresaId é obrigatório');
     return await prisma.contaReceber.findMany({
       where: {
+        empresaId,
         status: 'PENDENTE',
         dataVencimento: { lt: new Date() }
       }

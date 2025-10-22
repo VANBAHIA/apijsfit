@@ -4,7 +4,7 @@ const alunoRepository = require('../repositories/alunoRepository');
 const ApiError = require('../utils/apiError');
 
 class AvaliacaoFisicaService {
-  
+
   /**
    * Gera o próximo código sequencial
    */
@@ -46,7 +46,7 @@ class AvaliacaoFisicaService {
    * Calcula percentual de gordura (Protocolo de 7 dobras - Jackson & Pollock)
    */
   calcularPercentualGordura(dados, sexo, idade) {
-    const { 
+    const {
       dobrasSubescapular,
       dobrasTricipital,
       dobrasToracica,
@@ -76,14 +76,14 @@ class AvaliacaoFisicaService {
     let densidadeCorporal;
 
     if (sexo === 'MASCULINO') {
-      densidadeCorporal = 1.112 - 
-        (0.00043499 * somaDobras) + 
-        (0.00000055 * Math.pow(somaDobras, 2)) - 
+      densidadeCorporal = 1.112 -
+        (0.00043499 * somaDobras) +
+        (0.00000055 * Math.pow(somaDobras, 2)) -
         (0.00028826 * idade);
     } else { // FEMININO
-      densidadeCorporal = 1.097 - 
-        (0.00046971 * somaDobras) + 
-        (0.00000056 * Math.pow(somaDobras, 2)) - 
+      densidadeCorporal = 1.097 -
+        (0.00046971 * somaDobras) +
+        (0.00000056 * Math.pow(somaDobras, 2)) -
         (0.00012828 * idade);
     }
 
@@ -115,7 +115,7 @@ class AvaliacaoFisicaService {
     };
 
     const tabela = sexo === 'MASCULINO' ? tabelaMasculino : tabelaFeminino;
-    
+
     // Determinar faixa etária
     let faixaEtaria = 20;
     if (idade >= 60) faixaEtaria = 60;
@@ -186,7 +186,7 @@ class AvaliacaoFisicaService {
 
       // Calcular idade do aluno
       const dataNascimento = aluno.pessoa.dtNsc;
-      const idade = dataNascimento 
+      const idade = dataNascimento
         ? Math.floor((new Date() - new Date(dataNascimento)) / (365.25 * 24 * 60 * 60 * 1000))
         : null;
 
@@ -205,7 +205,7 @@ class AvaliacaoFisicaService {
 
       if (aluno.pessoa.sexo && idade && dados.dobrasSubescapular) {
         percentualGordura = this.calcularPercentualGordura(dados, aluno.pessoa.sexo, idade);
-        
+
         if (percentualGordura) {
           classificacaoGordura = this.classificarGordura(percentualGordura, aluno.pessoa.sexo, idade);
           const composicao = this.calcularComposicaoCorporal(peso, percentualGordura);
@@ -232,15 +232,15 @@ class AvaliacaoFisicaService {
         massaMagra,
         massaGorda,
         pesoIdeal,
-        
+
         // Próxima avaliação (sugestão: 90 dias)
-        proximaAvaliacao: dados.proximaAvaliacao 
+        proximaAvaliacao: dados.proximaAvaliacao
           ? new Date(dados.proximaAvaliacao)
           : new Date(new Date(dataAvaliacao).setDate(new Date(dataAvaliacao).getDate() + 90)),
 
         // Medidas opcionais
         envergadura: dados.envergadura ? Number(dados.envergadura) : null,
-        
+
         // Circunferências
         pescoco: dados.pescoco ? Number(dados.pescoco) : null,
         ombro: dados.ombro ? Number(dados.ombro) : null,
@@ -375,6 +375,30 @@ class AvaliacaoFisicaService {
    * Atualizar avaliação
    */
   async atualizar(id, dados, empresaId) {
+
+    // 🔄 Mapear campos vindos do front com nomes incorretos
+    const mapaCampos = {
+      circunferenciaTorax: 'torax',
+      circunferenciaCintura: 'cintura',
+      circunferenciaQuadril: 'quadril',
+      circunferenciaBracoDireito: 'bracoDireito',
+      circunferenciaBracoEsquerdo: 'bracoEsquerdo',
+      circunferenciaCoxaDireita: 'coxaDireita',
+      circunferenciaCoxaEsquerda: 'coxaEsquerda',
+      circunferenciaPanturrilhaDireita: 'panturrilhaDireita',
+      circunferenciaPanturrilhaEsquerda: 'panturrilhaEsquerda'
+    };
+
+    // Substituir automaticamente os nomes
+    for (const [campoErrado, campoCorreto] of Object.entries(mapaCampos)) {
+      if (dados[campoErrado] !== undefined) {
+        dados[campoCorreto] = dados[campoErrado];
+        delete dados[campoErrado];
+      }
+    }
+
+
+
     if (!empresaId) {
       throw new ApiError(400, 'empresaId é obrigatório');
     }
@@ -385,6 +409,11 @@ class AvaliacaoFisicaService {
       if (!avaliacaoExistente) {
         throw new ApiError(404, 'Avaliação física não encontrada');
       }
+      if (dados.dataAvaliacao) {
+        dados.dataAvaliacao = new Date(dados.dataAvaliacao);
+      }
+
+
 
       // Recalcular se peso ou altura mudaram
       if (dados.peso || dados.altura) {
@@ -452,8 +481,8 @@ class AvaliacaoFisicaService {
       }
 
       const evolucao = await avaliacaoFisicaRepository.buscarEvolucao(
-        alunoId, 
-        empresaId, 
+        alunoId,
+        empresaId,
         parametros
       );
 

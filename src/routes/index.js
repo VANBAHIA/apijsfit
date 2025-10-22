@@ -26,6 +26,7 @@ const equipamentoRoutes = require('./equipamentoRoutes');
 const grupoExercicioRoutes = require('./grupoExerciciosRoutes');
 const exercicioRoutes = require('./exerciciosRoutes');
 const avaliacaoFisicaRoutes = require('./avaliacaoFisicaRoutes');
+const instrutorRoutes = require('./instrutorRoutes');
 
 
 
@@ -53,6 +54,7 @@ router.use('/equipamentos', equipamentoRoutes);
 router.use('/gruposexercicio', grupoExercicioRoutes);
 router.use('/exercicios', exercicioRoutes);
 router.use('/avaliacoes-fisicas', avaliacaoFisicaRoutes);
+router.use('/instrutores', instrutorRoutes);
 
 
 router.get('/health', (req, res) => {
@@ -86,6 +88,7 @@ router.get('/health', (req, res) => {
       grupoExercicios: '/api/gruposexercicio',
       exercicios: '/api/exercicios',
       exerciciosEquipamentos: '/api/exercicios/:exercicioId/equipamentos',
+      instrutores: '/api/instrutores',
       avaliacoesFisicas: '/api/avaliacoes-fisicas'
     }
   });
@@ -130,6 +133,11 @@ router.get('/', (req, res) => {
         path: '/api/avaliacoes-fisicas',
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         description: 'Gerenciar avaliações físicas dos alunos'
+      },
+      {
+        path: '/api/instrutores',
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        description: 'Gerenciar instrutores'
       },
       {
         path: '/api/exercicios/:exercicioId/equipamentos',

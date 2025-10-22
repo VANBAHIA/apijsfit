@@ -2,7 +2,7 @@
 const prisma = require('../config/database');
 
 class AvaliacaoFisicaRepository {
-  
+
   async criar(data) {
     return await prisma.avaliacaoFisica.create({
       data,
@@ -25,14 +25,14 @@ class AvaliacaoFisicaRepository {
   }
 
   async buscarTodos(filtros = {}) {
-    const { 
+    const {
       empresaId,
-      alunoId, 
-      dataInicio, 
-      dataFim, 
+      alunoId,
+      dataInicio,
+      dataFim,
       status,
-      skip = 0, 
-      take = 10 
+      skip = 0,
+      take = 10
     } = filtros;
 
     const where = { empresaId };
@@ -80,9 +80,9 @@ class AvaliacaoFisicaRepository {
 
   async buscarPorId(id, empresaId) {
     return await prisma.avaliacaoFisica.findFirst({
-      where: { 
+      where: {
         id,
-        empresaId 
+        empresaId
       },
       include: {
         aluno: {
@@ -122,23 +122,28 @@ class AvaliacaoFisicaRepository {
   }
 
   async atualizar(id, data, empresaId) {
-    return await prisma.avaliacaoFisica.updateMany({
-      where: { 
+    // Remove 'id' e qualquer outro campo proibido do objeto 'data'
+    const { id: _, empresaId: __, ...dadosSemCamposProibidos } = data;
+
+    const res = await prisma.avaliacaoFisica.updateMany({
+      where: {
         id,
-        empresaId 
+        empresaId
       },
-      data
-    }).then(async (res) => {
-      if (res.count === 0) return null;
-      return await this.buscarPorId(id, empresaId);
+      data: dadosSemCamposProibidos
     });
+
+    if (res.count === 0) return null;
+
+  
+    return await this.buscarPorId(id, empresaId);
   }
 
   async deletar(id, empresaId) {
     return await prisma.avaliacaoFisica.deleteMany({
-      where: { 
+      where: {
         id,
-        empresaId 
+        empresaId
       }
     }).then(res => res.count);
   }

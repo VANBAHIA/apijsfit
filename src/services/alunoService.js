@@ -83,7 +83,7 @@ class AlunoService {
         console.log('✅ Pessoa existente atualizada:', pessoaId);
       } else {
         // ✅ PASSO 3: Pessoa não existe → Criar nova pessoa
-  
+
         const dadosPessoa = {
           empresaId,
           tipo: pessoa.tipo || 'FISICA',
@@ -133,7 +133,7 @@ class AlunoService {
           pessoa: {
             select: {
               id: true,
-              
+
               nome1: true,
               nome2: true,
               doc1: true,
@@ -166,13 +166,7 @@ class AlunoService {
     }
   }
 
-  /**
-   * Gera o próximo código sequencial para pessoa (dentro da empresa)
-   */
-  
-  /**
-   * Gera a próxima matrícula sequencial (dentro da empresa)
-   */
+
   async _gerarProximaMatricula(prismaClient, empresaId) {
     const ultimoAluno = await prismaClient.aluno.findFirst({
       where: { empresaId },
@@ -190,9 +184,7 @@ class AlunoService {
     return proximoNumero.toString().padStart(5, '0');
   }
 
-  /**
-   * Lista todos os alunos com paginação e filtros
-   */
+
   async listarTodos(filtros = {}) {
     const { situacao, page = 1, limit = 10, busca, empresaId } = filtros;
 
@@ -261,9 +253,7 @@ class AlunoService {
     }
   }
 
-  /**
-   * Busca um aluno por ID (validando se pertence à empresa)
-   */
+
   async buscarPorId(id, empresaId) {
     if (!empresaId) {
       throw new ApiError(400, 'empresaId é obrigatório');
@@ -273,7 +263,38 @@ class AlunoService {
       const aluno = await prisma.aluno.findUnique({
         where: { id },
         include: {
-          pessoa: true
+          pessoa: true,
+          // ✅ ADICIONAR: Buscar a última avaliação física do aluno
+          avaliacoesFisicas: {
+            orderBy: { dataAvaliacao: 'desc' },
+            take: 1, // Pega apenas a mais recente
+            select: {
+              id: true,
+              peso: true,
+              altura: true,
+              imc: true,
+              percentualGordura: true,
+              massaMagra: true,
+              massaGorda: true,
+              // Circunferências - Tronco
+              torax: true,
+              cintura: true,
+              abdomen: true,
+              quadril: true,
+              // Circunferências - Membros Superiores
+              bracoDireito: true,
+              bracoEsquerdo: true,
+              antebracoDireito: true,
+              antebracoEsquerdo: true,
+              // Circunferências - Membros Inferiores
+              coxaDireita: true,
+              coxaEsquerda: true,
+              panturrilhaDireita: true,
+              panturrilhaEsquerda: true,
+              observacoes: true,
+              dataAvaliacao: true,
+            }
+          }
         }
       });
 
@@ -286,6 +307,12 @@ class AlunoService {
         throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
       }
 
+      // ✅ Transformar array em objeto único (pega a primeira avaliação)
+      if (aluno.avaliacoesFisicas && aluno.avaliacoesFisicas.length > 0) {
+        aluno.avaliacaoFisica = aluno.avaliacoesFisicas[0];
+        delete aluno.avaliacoesFisicas; // Remove o array
+      }
+
       return aluno;
     } catch (error) {
       if (error instanceof ApiError) {
@@ -295,238 +322,240 @@ class AlunoService {
     }
   }
 
+
+
   /**
    * Atualiza aluno E pessoa em transação atômica
    */
   async atualizarComPessoa(id, dadosCompletos, empresaId) {
-    const { pessoa, aluno } = dadosCompletos;
+  const { pessoa, aluno } = dadosCompletos;
 
-    if (!empresaId) {
-      throw new ApiError(400, 'empresaId é obrigatório');
-    }
+  if (!empresaId) {
+    throw new ApiError(400, 'empresaId é obrigatório');
+  }
 
-    // Verificar se aluno existe e pertence à empresa
-    const alunoExistente = await prisma.aluno.findUnique({
-      where: { id },
-      select: { pessoaId: true, empresaId: true }
-    });
+  // Verificar se aluno existe e pertence à empresa
+  const alunoExistente = await prisma.aluno.findUnique({
+    where: { id },
+    select: { pessoaId: true, empresaId: true }
+  });
 
-    if (!alunoExistente) {
-      throw new ApiError(404, 'Aluno não encontrado');
-    }
+  if (!alunoExistente) {
+    throw new ApiError(404, 'Aluno não encontrado');
+  }
 
-    if (alunoExistente.empresaId !== empresaId) {
-      throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
-    }
+  if (alunoExistente.empresaId !== empresaId) {
+    throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+  }
 
-    try {
-      // ✅ TRANSAÇÃO ATÔMICA
-      const resultado = await prisma.$transaction(async (tx) => {
-        // 1️⃣ Atualizar Pessoa (se dados foram enviados)
-        if (pessoa) {
-          const dadosPessoa = {
-            nome1: pessoa.nome1,
-            nome2: pessoa.nome2 || null,
-            doc1: pessoa.doc1,
-            doc2: pessoa.doc2 || null,
-            situacao: pessoa.situacao || 'ATIVO'
-          };
+  try {
+    // ✅ TRANSAÇÃO ATÔMICA
+    const resultado = await prisma.$transaction(async (tx) => {
+      // 1️⃣ Atualizar Pessoa (se dados foram enviados)
+      if (pessoa) {
+        const dadosPessoa = {
+          nome1: pessoa.nome1,
+          nome2: pessoa.nome2 || null,
+          doc1: pessoa.doc1,
+          doc2: pessoa.doc2 || null,
+          situacao: pessoa.situacao || 'ATIVO'
+        };
 
-          if (pessoa.dtNsc) {
-            dadosPessoa.dtNsc = new Date(pessoa.dtNsc);
-          }
-
-          if (pessoa.enderecos) {
-            dadosPessoa.enderecos = pessoa.enderecos;
-          }
-
-          if (pessoa.contatos) {
-            dadosPessoa.contatos = pessoa.contatos;
-          }
-
-          await tx.pessoa.update({
-            where: { id: alunoExistente.pessoaId },
-            data: dadosPessoa
-          });
+        if (pessoa.dtNsc) {
+          dadosPessoa.dtNsc = new Date(pessoa.dtNsc);
         }
 
-        // 2️⃣ Atualizar Aluno
-        if (aluno) {
-          const dadosAluno = {
-            vldExameMedico: aluno.vldExameMedico ? new Date(aluno.vldExameMedico) : undefined,
-            vldAvaliacao: aluno.vldAvaliacao ? new Date(aluno.vldAvaliacao) : undefined,
-            objetivo: aluno.objetivo,
-            profissao: aluno.profissao,
-            empresa_nome: aluno.empresa_nome,
-            responsavel: aluno.responsavel,
-            horarios: aluno.horarios
-          };
-
-          // Hash da senha se foi enviada
-          if (aluno.controleAcesso?.senha) {
-            dadosAluno.controleAcesso = {
-              senha: await bcrypt.hash(aluno.controleAcesso.senha, 10),
-              impressaoDigital1: aluno.controleAcesso.impressaoDigital1 || null,
-              impressaoDigital2: aluno.controleAcesso.impressaoDigital2 || null
-            };
-          }
-
-          await tx.aluno.update({
-            where: { id },
-            data: dadosAluno
-          });
+        if (pessoa.enderecos) {
+          dadosPessoa.enderecos = pessoa.enderecos;
         }
 
-        // 3️⃣ Buscar aluno atualizado
-        return await tx.aluno.findUnique({
-          where: { id },
-          include: {
-            pessoa: true
-          }
+        if (pessoa.contatos) {
+          dadosPessoa.contatos = pessoa.contatos;
+        }
+
+        await tx.pessoa.update({
+          where: { id: alunoExistente.pessoaId },
+          data: dadosPessoa
         });
-      });
-
-      console.log('✅ Aluno atualizado com sucesso:', id);
-      return resultado;
-    } catch (error) {
-      console.error('❌ Erro na transação de atualização:', error);
-
-      if (error instanceof ApiError) {
-        throw error;
       }
 
-      throw new ApiError(500, `Erro ao atualizar aluno: ${error.message}`);
+      // 2️⃣ Atualizar Aluno
+      if (aluno) {
+        const dadosAluno = {
+          vldExameMedico: aluno.vldExameMedico ? new Date(aluno.vldExameMedico) : undefined,
+          vldAvaliacao: aluno.vldAvaliacao ? new Date(aluno.vldAvaliacao) : undefined,
+          objetivo: aluno.objetivo,
+          profissao: aluno.profissao,
+          empresa_nome: aluno.empresa_nome,
+          responsavel: aluno.responsavel,
+          horarios: aluno.horarios
+        };
+
+        // Hash da senha se foi enviada
+        if (aluno.controleAcesso?.senha) {
+          dadosAluno.controleAcesso = {
+            senha: await bcrypt.hash(aluno.controleAcesso.senha, 10),
+            impressaoDigital1: aluno.controleAcesso.impressaoDigital1 || null,
+            impressaoDigital2: aluno.controleAcesso.impressaoDigital2 || null
+          };
+        }
+
+        await tx.aluno.update({
+          where: { id },
+          data: dadosAluno
+        });
+      }
+
+      // 3️⃣ Buscar aluno atualizado
+      return await tx.aluno.findUnique({
+        where: { id },
+        include: {
+          pessoa: true
+        }
+      });
+    });
+
+    console.log('✅ Aluno atualizado com sucesso:', id);
+    return resultado;
+  } catch (error) {
+    console.error('❌ Erro na transação de atualização:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
     }
+
+    throw new ApiError(500, `Erro ao atualizar aluno: ${error.message}`);
   }
+}
 
   /**
    * Deleta aluno (a pessoa permanece no banco)
    */
   async deletar(id, empresaId) {
-    if (!empresaId) {
-      throw new ApiError(400, 'empresaId é obrigatório');
-    }
-
-    try {
-      const aluno = await prisma.aluno.findUnique({
-        where: { id },
-        select: { empresaId: true }
-      });
-
-      if (!aluno) {
-        throw new ApiError(404, 'Aluno não encontrado');
-      }
-
-      if (aluno.empresaId !== empresaId) {
-        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
-      }
-
-      await prisma.aluno.delete({
-        where: { id }
-      });
-
-      console.log('✅ Aluno deletado com sucesso:', id);
-      return { message: 'Aluno deletado com sucesso' };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError(500, `Erro ao deletar aluno: ${error.message}`);
-    }
+  if (!empresaId) {
+    throw new ApiError(400, 'empresaId é obrigatório');
   }
+
+  try {
+    const aluno = await prisma.aluno.findUnique({
+      where: { id },
+      select: { empresaId: true }
+    });
+
+    if (!aluno) {
+      throw new ApiError(404, 'Aluno não encontrado');
+    }
+
+    if (aluno.empresaId !== empresaId) {
+      throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+    }
+
+    await prisma.aluno.delete({
+      where: { id }
+    });
+
+    console.log('✅ Aluno deletado com sucesso:', id);
+    return { message: 'Aluno deletado com sucesso' };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(500, `Erro ao deletar aluno: ${error.message}`);
+  }
+}
 
   /**
    * Adiciona um horário ao aluno
    */
   async adicionarHorario(id, horario, empresaId) {
-    const { local, diasSemana, horarioEntrada, horarioSaida } = horario;
+  const { local, diasSemana, horarioEntrada, horarioSaida } = horario;
 
-    if (!empresaId) {
-      throw new ApiError(400, 'empresaId é obrigatório');
-    }
-
-    if (!local || !diasSemana || !horarioEntrada || !horarioSaida) {
-      throw new ApiError(400, 'Todos os campos do horário são obrigatórios');
-    }
-
-    try {
-      const aluno = await prisma.aluno.findUnique({
-        where: { id },
-        select: { empresaId: true }
-      });
-
-      if (!aluno) {
-        throw new ApiError(404, 'Aluno não encontrado');
-      }
-
-      if (aluno.empresaId !== empresaId) {
-        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
-      }
-
-      const novoHorario = { local, diasSemana, horarioEntrada, horarioSaida };
-
-      const alunoAtualizado = await prisma.aluno.update({
-        where: { id },
-        data: {
-          horarios: {
-            push: novoHorario
-          }
-        },
-        include: {
-          pessoa: true
-        }
-      });
-
-      console.log('✅ Horário adicionado ao aluno:', id);
-      return alunoAtualizado;
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError(500, `Erro ao adicionar horário: ${error.message}`);
-    }
+  if (!empresaId) {
+    throw new ApiError(400, 'empresaId é obrigatório');
   }
+
+  if (!local || !diasSemana || !horarioEntrada || !horarioSaida) {
+    throw new ApiError(400, 'Todos os campos do horário são obrigatórios');
+  }
+
+  try {
+    const aluno = await prisma.aluno.findUnique({
+      where: { id },
+      select: { empresaId: true }
+    });
+
+    if (!aluno) {
+      throw new ApiError(404, 'Aluno não encontrado');
+    }
+
+    if (aluno.empresaId !== empresaId) {
+      throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
+    }
+
+    const novoHorario = { local, diasSemana, horarioEntrada, horarioSaida };
+
+    const alunoAtualizado = await prisma.aluno.update({
+      where: { id },
+      data: {
+        horarios: {
+          push: novoHorario
+        }
+      },
+      include: {
+        pessoa: true
+      }
+    });
+
+    console.log('✅ Horário adicionado ao aluno:', id);
+    return alunoAtualizado;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(500, `Erro ao adicionar horário: ${error.message}`);
+  }
+}
 
   /**
    * Valida senha de acesso
    */
   async validarSenha(id, senha, empresaId) {
-    if (!empresaId) {
-      throw new ApiError(400, 'empresaId é obrigatório');
+  if (!empresaId) {
+    throw new ApiError(400, 'empresaId é obrigatório');
+  }
+
+  try {
+    const aluno = await prisma.aluno.findUnique({
+      where: { id },
+      select: {
+        empresaId: true,
+        controleAcesso: true
+      }
+    });
+
+    if (!aluno) {
+      throw new ApiError(404, 'Aluno não encontrado');
     }
 
-    try {
-      const aluno = await prisma.aluno.findUnique({
-        where: { id },
-        select: {
-          empresaId: true,
-          controleAcesso: true
-        }
-      });
-
-      if (!aluno) {
-        throw new ApiError(404, 'Aluno não encontrado');
-      }
-
-      if (aluno.empresaId !== empresaId) {
-        throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
-      }
-
-      const senhaValida = await bcrypt.compare(senha, aluno.controleAcesso.senha);
-
-      if (!senhaValida) {
-        throw new ApiError(401, 'Senha inválida');
-      }
-
-      console.log('✅ Senha validada com sucesso para aluno:', id);
-      return { valido: true };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      throw new ApiError(500, `Erro ao validar senha: ${error.message}`);
+    if (aluno.empresaId !== empresaId) {
+      throw new ApiError(403, 'Acesso negado. Aluno não pertence a sua empresa');
     }
+
+    const senhaValida = await bcrypt.compare(senha, aluno.controleAcesso.senha);
+
+    if (!senhaValida) {
+      throw new ApiError(401, 'Senha inválida');
+    }
+
+    console.log('✅ Senha validada com sucesso para aluno:', id);
+    return { valido: true };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(500, `Erro ao validar senha: ${error.message}`);
   }
 }
- 
+}
+
 module.exports = new AlunoService();

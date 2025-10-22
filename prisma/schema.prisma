@@ -337,6 +337,7 @@ model Funcionario {
   situacao     String    @default("ATIVO")
 
   visitantes Visitante[]
+  instrutores    Instrutor[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -662,7 +663,8 @@ model Empresa {
   caixas         Caixa[]
   equipamentos   Equipamento[]
   grupoExercicio GrupoExercicio[]
-  exercicios     Exercicio[]    // 👈 ADICIONE ESTA LINHA
+  exercicios     Exercicio[]  
+  instrutores    Instrutor[]
 
   @@map("empresas")
 }
@@ -814,4 +816,25 @@ model AvaliacaoFisica {
   @@index([dataAvaliacao])
   @@map("avaliacoes_fisicas")
 }
+
+model Instrutor {
+  id             String      @id @default(auto()) @map("_id") @db.ObjectId
+  funcionarioId  String      @db.ObjectId
+  empresaId      String      @db.ObjectId
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  
+  // Relações
+  funcionario    Funcionario @relation(fields: [funcionarioId], references: [id], onDelete: Cascade)
+  empresa        Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  
+  // Índices
+  @@unique([funcionarioId, empresaId])
+  @@index([empresaId])
+  @@index([funcionarioId])
+  
+  @@map("instrutores")
+}
+
 
